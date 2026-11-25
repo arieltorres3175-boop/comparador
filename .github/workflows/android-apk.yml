@@ -24,6 +24,9 @@ jobs:
         with:
           channel: stable
 
+      - name: generar estructura android
+        run: flutter create . --platforms=android
+
       - name: instalar dependencias
         run: flutter pub get
 
@@ -35,3 +38,4 @@ jobs:
         with:
           name: comparador-inteligente-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          
