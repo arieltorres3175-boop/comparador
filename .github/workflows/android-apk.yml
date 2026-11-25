@@ -1,0 +1,37 @@
+
+name: generar-apk-android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.dart'
+      - 'pubspec.yaml'
+      - '.github/workflows/android-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: descargar codigo
+        uses: actions/checkout@v4
+
+      - name: instalar flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: instalar dependencias
+        run: flutter pub get
+
+      - name: compilar apk
+        run: flutter build apk --release
+
+      - name: guardar apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparador-inteligente-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
