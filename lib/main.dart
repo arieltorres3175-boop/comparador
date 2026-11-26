@@ -151,17 +151,6 @@ class _HomePageState extends State<HomePage> {
 
   String get query => searchController.text.trim();
 
-  List<String> get _availableBrands {
-    final brands = (discoveryResult ?? searchResult)?.products
-            .map((product) => product.brand?.trim() ?? '')
-            .where((brand) => brand.isNotEmpty)
-            .toSet()
-            .toList() ??
-        <String>[];
-    brands.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return brands;
-  }
-
   Map<String, List<String>> get _availableFacets {
     if (selectedCategory == null) return const {};
     return ProductFacets.initialOptions(selectedCategory!);
