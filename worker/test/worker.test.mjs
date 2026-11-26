@@ -70,7 +70,7 @@ beforeEach(() => {
     },
   };
   globalThis.fetch = async (input) => {
-    const url = new URL(typeof input === 'string' ? input : input.url);
+    const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
     if (url.hostname === 'www.cotodigital.com.ar') {
       cotoSearchTerm = url.searchParams.get('Ntt');
       return new Response(JSON.stringify(cotoResponse()), {
