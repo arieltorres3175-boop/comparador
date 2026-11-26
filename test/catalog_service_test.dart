@@ -96,7 +96,7 @@ void main() {
     service.close();
   });
 
-  test('una búsqueda genérica devuelve varias opciones y hasta 50 por cadena', () async {
+  test('una búsqueda genérica devuelve varias opciones con carga inicial acotada', () async {
     final requestedRanges = <String>[];
     final client = MockClient((request) async {
       if (request.url.host == 'www.cotodigital.com.ar') {
@@ -172,7 +172,7 @@ void main() {
     final result = await service.search('leche');
 
     expect(requestedRanges, hasLength(6));
-    expect(requestedRanges.every((range) => range == '49'), isTrue);
+    expect(requestedRanges.every((range) => range == '19'), isTrue);
     expect(result.products, hasLength(2));
     expect(result.products.map((product) => product.brand).toSet(),
         containsAll(['Marca A', 'Marca B']));
@@ -255,7 +255,7 @@ void main() {
     });
 
     final service = CatalogService(client: client);
-    final result = await service.search('leche');
+    final result = await service.search('leche', limit: 50);
 
     expect(result.products, hasLength(51));
     expect(offsetsByStore, hasLength(6));
