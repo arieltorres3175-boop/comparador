@@ -343,6 +343,14 @@ class CatalogService {
             image: image,
             url: productUrl,
             priceType: 'online_default_channel',
+            promotions: (offer['Teasers'] as List<dynamic>? ?? [])
+                .whereType<Map<String, dynamic>>()
+                .map((teaser) => {
+                      'text': teaser['name']?.toString() ??
+                          teaser['teaserName']?.toString() ??
+                          'Promoción publicada por el supermercado',
+                    })
+                .toList(),
           ));
         }
       }
