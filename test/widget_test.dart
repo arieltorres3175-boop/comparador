@@ -25,7 +25,14 @@ void main() {
     expect(find.text('Filtros para Leche'), findsOneWidget);
 
     // Filters are data-driven and wait for the first catalog discovery.
-    expect(find.textContaining('Primero consultamos los supermercados.'), findsOneWidget);
+    final discoveryHint = find.textContaining('Primero consultamos los supermercados.');
+    await tester.scrollUntilVisible(
+      discoveryHint,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(discoveryHint, findsOneWidget);
     expect(find.text('Marca (opcional)'), findsNothing);
 
     final searchButton = find.text('Buscar en los supermercados');
