@@ -309,6 +309,23 @@ class _HomePageState extends State<HomePage> {
     return '$day/$month/${local.year} $hour:$minute';
   }
 
+  String _promotionLabel(Map<String, dynamic> promotion) {
+    final parts = <String>[];
+    final description = promotion['text']?.toString();
+    if (description != null && description.trim().isNotEmpty) {
+      parts.add(description.trim());
+    }
+    final promotionalPrice = promotion['price'];
+    if (promotionalPrice is num && promotionalPrice > 0) {
+      parts.add('Precio promocional: ${money(promotionalPrice.toDouble())}');
+    }
+    final restriction = promotion['restriction']?.toString();
+    if (restriction != null && restriction.trim().isNotEmpty) {
+      parts.add(restriction.trim());
+    }
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -741,6 +758,22 @@ class _HomePageState extends State<HomePage> {
                                   color: Colors.black54,
                                   fontSize: 10,
                                   decoration: TextDecoration.lineThrough),
+                            ),
+                          if (offer.promotions.isNotEmpty)
+                            SizedBox(
+                              width: 190,
+                              child: Text(
+                                offer.promotions
+                                    .map(_promotionLabel)
+                                    .where((label) => label.isNotEmpty)
+                                    .join('\n'),
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(
+                                  color: Color(0xFF176B52),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                         ],
                       ),
