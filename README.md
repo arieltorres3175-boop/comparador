@@ -1,36 +1,50 @@
 # Comparador inteligente
 
-Aplicación Flutter para ayudar a comparar compras en supermercados de Argentina.
+Aplicación Flutter para comparar productos publicados en supermercados de Argentina y armar una lista propia.
 
-## Estado de esta versión (MVP inicial)
+## Qué hace esta versión de desarrollo
 
-- Búsqueda de texto del producto que el usuario quiere consultar.
-- Acceso directo a los sitios oficiales de Carrefour, Jumbo, Coto, Disco, Vea, ChangoMás y DIA.
-- Copiado del texto de búsqueda para pegarlo en el buscador de cada tienda.
-- Lista de compras propia, con cantidades y persistencia local en el teléfono.
-- Sin precios, descuentos, stock ni resultados ficticios.
+- Busca productos en los catálogos online de Jumbo, Disco, Vea, Carrefour, DIA, ChangoMás y Coto.
+- Muestra nombre, presentación, EAN, imagen, precio publicado y enlace al producto cuando la tienda entrega esos datos.
+- Agrupa productos de distintas cadenas únicamente cuando coincide el EAN. Los artículos sin EAN quedan separados para evitar comparaciones dudosas.
+- Permite agregar el producto elegido a una lista local, cambiar cantidades y comparar el total por supermercado.
+- Marca como incompleto el total de una tienda cuando no se encontró alguno de los productos.
+- Guarda la lista y los precios consultados en el teléfono.
 
-## Limitación importante
+## Cómo se consultan los catálogos
 
-Esta versión todavía **no consulta automáticamente** los catálogos de los supermercados ni compara precios. Los botones abren los sitios oficiales y el usuario realiza la búsqueda allí. No se debe interpretar esta versión como un comparador automático ni como una fuente de precios vigentes.
+- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX.
+- **Coto:** buscador público de Coto Digital, con el identificador de sucursal de referencia `200`.
+- En Android, la app consulta directamente los catálogos.
+- En la versión web, las APIs VTEX no habilitan CORS para el sitio de GitHub Pages. Para la web se incluye un intermediario Cloudflare Worker en `worker/`.
 
-La integración automática requiere estudiar y validar por separado las fuentes públicas/autorizadas de cada cadena, sus condiciones de acceso, la identificación de variantes (idealmente EAN), sucursales, vigencias y promociones.
+## Configuración de la versión web
 
-## Ejecutar
+1. Crear un Worker gratuito en Cloudflare.
+2. Publicar el código de `worker/src/index.js` siguiendo `worker/README.md`.
+3. En GitHub, abrir **Settings → Secrets and variables → Actions → Variables**.
+4. Crear la variable `COMPARADOR_API_BASE_URL` con la URL base del Worker, por ejemplo `https://comparador-api.tu-cuenta.workers.dev`.
+5. Volver a ejecutar el workflow de Flutter Web.
 
-1. Instalar Flutter SDK.
-2. Ejecutar `flutter pub get`.
-3. Ejecutar `flutter run`.
+Si la variable no está configurada, la búsqueda automática en la versión web mostrará un aviso. La app Android no necesita esa variable.
 
-## Generar APK
+## Límites que la app informa
 
-En GitHub: abrir **Actions**, seleccionar **generar-apk-android** y ejecutar **Run workflow**. Al finalizar, descargar el artefacto `comparador-inteligente-apk`.
+- Los precios son los publicados en catálogos online en el momento de la consulta. Pueden variar por sucursal, código postal, canal de venta y disponibilidad.
+- Coto usa una sucursal de referencia hasta que se incorpore la selección de sucursal del usuario.
+- No se consideran todavía descuentos bancarios, billeteras, topes, mínimos, exclusiones ni reglas de acumulación.
+- La lista compara los precios guardados al agregar cada producto; hay que volver a consultar antes de comprar para confirmar vigencia.
+- No se inicia sesión, no se accede a cuentas de supermercados y no se agregan productos a carritos externos.
 
-## Próximos hitos
+## Pruebas
 
-1. Validar búsquedas y rutas de catálogo de cada supermercado.
-2. Implementar conectores de consulta donde el acceso esté permitido y sea técnicamente estable.
-3. Normalizar productos por marca, variante, contenido y EAN.
-4. Incorporar precios con fuente y fecha/hora de consulta.
-5. Modelar promociones, medios de pago, topes, mínimos, vigencias y reglas de acumulación.
-6. Comparar listas completas y combinaciones de comercios sin inventar datos.
+- `worker/`: pruebas unitarias del intermediario y normalización de productos.
+- `.github/workflows/catalog-smoke-test.yml`: diagnóstico de endpoints públicos de las siete cadenas y verificación de coincidencia por EAN.
+- `.github/workflows/validate-pr.yml`: pruebas, análisis Flutter y compilación de APK/Web.
+
+## Ejecutar localmente
+
+```bash
+flutter pub get
+flutter run
+```
