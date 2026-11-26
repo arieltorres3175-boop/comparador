@@ -26,7 +26,7 @@ void main() {
     expect(
       find.byWidgetPredicate(
         (widget) => widget is TextField &&
-            widget.decoration.labelText == 'Marca (opcional)',
+            widget.decoration?.labelText == 'Marca (opcional)',
       ),
       findsOneWidget,
     );
