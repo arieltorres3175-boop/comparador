@@ -4,7 +4,7 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 
 ## Qué hace esta versión de desarrollo
 
-- Permite búsquedas genéricas por categoría o producto (por ejemplo, «leche», «aceite», «crema», «yogur» o «azúcar») y devuelve hasta 50 coincidencias por supermercado en esta versión.
+- Permite búsquedas por categoría o producto. La búsqueda textual prioriza únicamente productos cuyo nombre comienza con la primera palabra buscada (por ejemplo, «leche» no mezcla «dulce de leche» ni «chicle sin azúcar»).
 - Muestra distintas marcas y presentaciones con nombre, EAN, imagen, precio publicado y enlace al producto cuando la tienda entrega esos datos. Las opciones se ordenan por menor precio y se pueden filtrar por marca.
 - Agrupa ofertas de distintas cadenas únicamente cuando coincide el EAN. Los artículos sin EAN quedan separados para evitar comparaciones dudosas; no confunde productos parecidos con el mismo producto.
 - Permite agregar el producto elegido a una lista local, cambiar cantidades y comparar el total por supermercado.
@@ -13,8 +13,8 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 
 ## Cómo se consultan los catálogos
 
-- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX.
-- **Coto:** buscador público de Coto Digital, con el identificador de sucursal de referencia `200`.
+- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX, consultada por páginas de hasta 50 resultados.
+- **Coto:** buscador público de Coto Digital, con paginación y el identificador de sucursal de referencia `200`.
 - En Android, la app consulta directamente los catálogos.
 - En la versión web, las APIs VTEX no habilitan CORS para el sitio de GitHub Pages. Para la web se incluye un intermediario Cloudflare Worker en `worker/`.
 
@@ -32,7 +32,7 @@ Si la variable no está configurada, la búsqueda automática en la versión web
 
 - Los precios son los publicados en catálogos online en el momento de la consulta. Pueden variar por sucursal, código postal, canal de venta y disponibilidad.
 - Coto usa una sucursal de referencia hasta que se incorpore la selección de sucursal del usuario.
-- No se consideran todavía descuentos bancarios, billeteras, topes, mínimos, exclusiones ni reglas de acumulación.
+- La comparación marca el menor precio publicado entre ofertas del mismo producto identificado por EAN. Los beneficios bancarios, billeteras, topes, mínimos, exclusiones y reglas de acumulación todavía requieren una fuente verificable y una configuración de medios de pago del usuario.
 - La lista compara los precios guardados al agregar cada producto; hay que volver a consultar antes de comprar para confirmar vigencia.
 - No se inicia sesión, no se accede a cuentas de supermercados y no se agregan productos a carritos externos.
 
