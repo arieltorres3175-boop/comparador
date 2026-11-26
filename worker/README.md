@@ -20,6 +20,14 @@ Intermediario liviano para consultar los catálogos públicos de Jumbo, Disco, V
 6. Probar `https://NOMBRE-DEL-WORKER.USUARIO.workers.dev/health`.
 7. Configurar esa URL como base de API en la app.
 
+También puede desplegarse desde GitHub Actions sin pegar el código manualmente:
+
+1. En Cloudflare, crear un API Token con permiso **Workers Scripts: Edit** para la cuenta.
+2. En GitHub, abrir **Settings → Secrets and variables → Actions → Secrets**.
+3. Crear los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
+4. Abrir **Actions → desplegar-api-comparador → Run workflow**.
+5. Al finalizar, copiar la URL `workers.dev` del Worker y guardarla como variable `COMPARADOR_API_BASE_URL` en **Settings → Secrets and variables → Actions → Variables**.
+
 También puede desplegarse desde una terminal con Wrangler:
 
 ```bash
