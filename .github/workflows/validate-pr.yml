@@ -10,6 +10,7 @@ on:
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - 'test/**'
+      - 'worker/**'
       - '.github/workflows/validate-pr.yml'
 
 permissions:
@@ -32,6 +33,9 @@ jobs:
 
       - name: Instalar dependencias
         run: flutter pub get
+
+      - name: Probar API de catálogos
+        run: cd worker && npm test
 
       - name: Analizar código
         run: flutter analyze --no-fatal-infos
