@@ -107,6 +107,7 @@ class _HomePageState extends State<HomePage> {
   final Map<String, String> selectedFacets = {};
   String sortMode = 'price';
   CatalogSearchResult? searchResult;
+  CatalogSearchResult? discoveryResult;
 
   @override
   void initState() {
@@ -149,7 +150,7 @@ class _HomePageState extends State<HomePage> {
   String get query => searchController.text.trim();
 
   List<String> get _availableBrands {
-    final brands = searchResult?.products
+    final brands = (discoveryResult ?? searchResult)?.products
             .map((product) => product.brand?.trim() ?? '')
             .where((brand) => brand.isNotEmpty)
             .toSet()
@@ -163,7 +164,7 @@ class _HomePageState extends State<HomePage> {
     if (selectedCategory == null) return const {};
     return ProductFacets.available(
       selectedCategory!,
-      (searchResult?.products ?? <CatalogProduct>[]).map((product) =>
+      ((discoveryResult ?? searchResult)?.products ?? <CatalogProduct>[]).map((product) =>
           '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}'),
     );
   }
@@ -194,22 +195,47 @@ class _HomePageState extends State<HomePage> {
     return products;
   }
 
-  Future<void> _performSearch() async {
+  String _queryForSelectedFilters() {
+    if (selectedBrand != null && selectedBrand!.trim().isNotEmpty) {
+      return selectedBrand!.trim();
+    }
+    for (final entry in selectedFacets.entries) {
+      if (entry.key == 'Contenido' || entry.value.contains('/')) continue;
+      final words = entry.value.trim().split(RegExp(r'\\s+'));
+      final token = words.isEmpty ? '' : words.last;
+      if (token.length >= 3) return token;
+    }
+    return query;
+  }
+
+  Future<void> _performSearch({
+    String? catalogQuery,
+    bool keepDiscovery = false,
+  }) async {
     if (query.length < 2 || searching) return;
     FocusScope.of(context).unfocus();
     setState(() {
       page = 1;
       searching = true;
       searchError = null;
-      searchResult = null;
-      selectedBrand = null;
-      selectedFacets.clear();
-      sortMode = 'price';
+      if (!keepDiscovery) {
+        searchResult = null;
+        discoveryResult = null;
+        selectedBrand = null;
+        selectedFacets.clear();
+        sortMode = 'price';
+      }
     });
     try {
-      final result = await catalogService.search(query);
+      final result = await catalogService.search(
+        query,
+        catalogQuery: catalogQuery,
+      );
       if (!mounted) return;
-      setState(() => searchResult = result);
+      setState(() {
+        searchResult = result;
+        if (!keepDiscovery) discoveryResult = result;
+      });
     } catch (error) {
       if (!mounted) return;
       setState(() =>
