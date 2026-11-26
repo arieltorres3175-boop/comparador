@@ -182,7 +182,7 @@ class CatalogService {
   final http.Client _client;
 
   Future<CatalogSearchResult> search(String rawQuery, {int limit = 50}) async {
-    limit = limit.clamp(1, 50);
+    limit = limit.clamp(1, 50).toInt();
     final query = rawQuery.trim();
     if (query.length < 2) {
       throw Exception('Escribí al menos dos caracteres para buscar.');
