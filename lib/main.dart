@@ -614,7 +614,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _performSearch,
+            onPressed: () => _performSearch(catalogQuery: _queryForSelectedFilters(), keepDiscovery: true),
             icon: const Icon(Icons.refresh),
             label: const Text('Reintentar'),
           ),
