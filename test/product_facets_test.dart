@@ -19,6 +19,7 @@ void main() {
       'Café molido tostado 250 g',
       'Café instantáneo 100 g doypack',
       'Café en grano torrado 500 g',
+      'Café molido torrado 500 Grs',
       'Café molido en saquitos 18 g',
     ]);
 
