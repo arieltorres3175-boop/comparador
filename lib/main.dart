@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'services/catalog_service.dart';
+import 'services/product_facets.dart';
 
 void main() => runApp(const ComparadorApp());
 
@@ -102,6 +103,8 @@ class _HomePageState extends State<HomePage> {
   String? message;
   String? searchError;
   String? selectedBrand;
+  String? selectedCategory;
+  final Map<String, String> selectedFacets = {};
   String sortMode = 'price';
   CatalogSearchResult? searchResult;
 
@@ -156,10 +159,25 @@ class _HomePageState extends State<HomePage> {
     return brands;
   }
 
+  Map<String, List<String>> get _availableFacets {
+    if (selectedCategory == null) return const {};
+    return ProductFacets.available(
+      selectedCategory!,
+      (searchResult?.products ?? <CatalogProduct>[]).map((product) =>
+          '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}'),
+    );
+  }
+
   List<CatalogProduct> get _visibleProducts {
     final products = (searchResult?.products ?? <CatalogProduct>[])
         .where((product) =>
-            selectedBrand == null || product.brand == selectedBrand)
+            (selectedBrand == null || product.brand == selectedBrand) &&
+            (selectedCategory == null ||
+                ProductFacets.matches(
+                  selectedCategory!,
+                  '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
+                  selectedFacets,
+                )))
         .toList();
     if (sortMode == 'brand') {
       products.sort((a, b) => (a.brand ?? a.name)
@@ -181,6 +199,7 @@ class _HomePageState extends State<HomePage> {
       searchError = null;
       searchResult = null;
       selectedBrand = null;
+      selectedFacets.clear();
       sortMode = 'price';
     });
     try {
@@ -405,6 +424,30 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 18),
+        const Text('Elegí una categoría para empezar',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 7),
+        Wrap(
+          spacing: 7,
+          runSpacing: 6,
+          children: ProductFacets.categories.keys.map((category) =>
+              ChoiceChip(
+                label: Text(category),
+                selected: selectedCategory == category,
+                onSelected: searching ? null : (selected) {
+                  setState(() {
+                    selectedCategory = selected ? category : null;
+                    selectedFacets.clear();
+                    selectedBrand = null;
+                    searchController.text = selected
+                        ? ProductFacets.categories[category]!
+                        : '';
+                  });
+                  if (selected) _performSearch();
+                },
+              )).toList(),
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: searchController,
           textInputAction: TextInputAction.search,
@@ -555,6 +598,37 @@ class _HomePageState extends State<HomePage> {
               'Elegí la marca y presentación que prefieras. Por defecto, las opciones están ordenadas desde el menor precio.',
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
+            if (selectedCategory != null && _availableFacets.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Filtrar esta categoría',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: _availableFacets.entries.map((facet) =>
+                    DropdownButton<String>(
+                      value: selectedFacets[facet.key],
+                      hint: Text(facet.key),
+                      underline: const SizedBox.shrink(),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Todos: ${facet.key.toLowerCase()}'),
+                        ),
+                        ...facet.value.map((value) => DropdownMenuItem<String>(
+                              value: value, child: Text(value))),
+                      ],
+                      onChanged: (value) => setState(() {
+                        if (value == null) {
+                          selectedFacets.remove(facet.key);
+                        } else {
+                          selectedFacets[facet.key] = value;
+                        }
+                      }),
+                    )).toList(),
+              ),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 12,
