@@ -72,10 +72,24 @@ class ProductFacets {
         r'\btorrado\b': 'Torrado',
         r'\btostado\b': 'Tostado',
       });
+      match('Presentación', {
+        r'\bdoy\s?pack\b': 'Doypack',
+        r'\bfrasco\b': 'Frasco',
+        r'\bsaquitos?\b': 'Saquitos',
+        r'\bcapsulas?\b': 'Cápsulas',
+        r'\blata\b': 'Lata',
+        r'\bpaquete\b': 'Paquete',
+      });
     } else if (category == 'Manteca') {
       match('Variante', {
         r'\bsin sal\b': 'Sin sal',
         r'\bcon sal\b': 'Con sal',
+      });
+      match('Presentación', {
+        r'\bpote\b': 'Pote',
+        r'\bpan\b': 'Pan',
+        r'\bpapel\b': 'Envoltorio',
+        r'\bpack\b': 'Pack',
       });
     }
 
