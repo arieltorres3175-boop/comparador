@@ -700,6 +700,22 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+            if (selectedBrand != null || selectedFacets.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: searching
+                      ? null
+                      : () => _performSearch(
+                            catalogQuery: _queryForSelectedFilters(),
+                            keepDiscovery: true,
+                          ),
+                  icon: const Icon(Icons.filter_alt),
+                  label: const Text('Buscar con estos filtros en los supermercados'),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             if (_visibleProducts.isEmpty)
               const Text('No hay productos con esos filtros.')
