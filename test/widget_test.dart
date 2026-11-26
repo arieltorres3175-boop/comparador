@@ -21,7 +21,9 @@ void main() {
     expect(find.text('Una búsqueda, siete supermercados'), findsOneWidget);
     expect(find.text('Elegí una categoría para empezar'), findsOneWidget);
     expect(find.text('Búsquedas frecuentes'), findsNothing);
-    await tester.enterText(find.byType(TextField).first, 'leche');
+    // Select the category through the same visible control a user taps.
+    // This keeps this screen smoke test independent from text-entry behavior.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Leche'));
     await tester.pumpAndSettle();
     expect(find.text('Filtros para Leche'), findsOneWidget);
 
