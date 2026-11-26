@@ -4,9 +4,9 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 
 ## Qué hace esta versión de desarrollo
 
-- Busca productos en los catálogos online de Jumbo, Disco, Vea, Carrefour, DIA, ChangoMás y Coto.
-- Muestra nombre, presentación, EAN, imagen, precio publicado y enlace al producto cuando la tienda entrega esos datos.
-- Agrupa productos de distintas cadenas únicamente cuando coincide el EAN. Los artículos sin EAN quedan separados para evitar comparaciones dudosas.
+- Permite búsquedas genéricas por categoría o producto (por ejemplo, «leche», «aceite», «crema», «yogur» o «azúcar») y devuelve hasta 50 coincidencias por supermercado en esta versión.
+- Muestra distintas marcas y presentaciones con nombre, EAN, imagen, precio publicado y enlace al producto cuando la tienda entrega esos datos. Las opciones se ordenan por menor precio y se pueden filtrar por marca.
+- Agrupa ofertas de distintas cadenas únicamente cuando coincide el EAN. Los artículos sin EAN quedan separados para evitar comparaciones dudosas; no confunde productos parecidos con el mismo producto.
 - Permite agregar el producto elegido a una lista local, cambiar cantidades y comparar el total por supermercado.
 - Marca como incompleto el total de una tienda cuando no se encontró alguno de los productos.
 - Guarda la lista y los precios consultados en el teléfono.
