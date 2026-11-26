@@ -16,6 +16,6 @@ void main() {
 
     expect(find.text('comparador inteligente'), findsOneWidget);
     expect(find.text('Una búsqueda, siete supermercados'), findsOneWidget);
-    expect(find.text('Ver supermercados'), findsOneWidget);
+    expect(find.text('Buscar en los supermercados'), findsOneWidget);
   });
 }
