@@ -55,7 +55,15 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'aceite de girasol Natura 900 ml');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Agregar a mi lista sin buscar precios'));
+    final quickAddButton = find.text('Agregar a mi lista sin buscar precios');
+    await tester.scrollUntilVisible(
+      quickAddButton,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(quickAddButton, findsOneWidget);
+    await tester.tap(quickAddButton);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Mi lista').last);
