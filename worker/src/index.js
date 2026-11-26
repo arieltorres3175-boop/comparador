@@ -258,7 +258,7 @@ export default {
     const vtexResults = await Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
     // Coto is a separate Endeca-based adapter; run it after the six VTEX requests.
     let cotoQuery = query;
-    if (/^\\d{8,14}$/.test(query)) {
+    if (/^\d{8,14}$/.test(query)) {
       const matchedVtexProduct = vtexResults
         .flatMap((result) => result.offers)
         .find((offer) => offer.ean === query);
