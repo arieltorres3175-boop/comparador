@@ -234,6 +234,16 @@ class ProductFacets {
     return sorted;
   }
 
+  static String canonicalBrand(String category, String value) {
+    final normalized = normalize(value);
+    if (category == 'Leche') {
+      for (final brand in _milkBrands) {
+        if (normalize(brand) == normalized) return brand;
+      }
+    }
+    return value.trim();
+  }
+
   static bool matchesBrand(String category, String brand, String productText) {
     final normalizedBrand = normalize(brand);
     return normalizedBrand.isEmpty || normalize(productText).contains(normalizedBrand);
