@@ -95,4 +95,60 @@ void main() {
 
     service.close();
   });
+
+  test('una búsqueda genérica devuelve varias opciones y hasta 50 por cadena', () async {
+    final requestedRanges = <String>[];
+    final client = MockClient((request) async {
+      if (request.url.host == 'www.cotodigital.com.ar') {
+        return http.Response(jsonEncode({'contents': []}), 200);
+      }
+      requestedRanges.add(request.url.queryParameters['_to'] ?? '');
+      final products = [
+        {
+          'productName': 'Leche entera marca A 1 litro',
+          'brand': 'Marca A',
+          'link': '/leche-a/p',
+          'items': [
+            {
+              'ean': '7790000000001',
+              'name': '1 litro',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 1800, 'ListPrice': 1800}}
+              ],
+            }
+          ],
+        },
+        {
+          'productName': 'Leche descremada marca B 1 litro',
+          'brand': 'Marca B',
+          'link': '/leche-b/p',
+          'items': [
+            {
+              'ean': '7790000000002',
+              'name': '1 litro',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 2100, 'ListPrice': 2100}}
+              ],
+            }
+          ],
+        },
+      ];
+      return http.Response(jsonEncode(products), 206);
+    });
+
+    final service = CatalogService(client: client);
+    final result = await service.search('leche');
+
+    expect(requestedRanges, hasLength(6));
+    expect(requestedRanges.every((range) => range == '49'), isTrue);
+    expect(result.products, hasLength(2));
+    expect(result.products.map((product) => product.brand).toSet(),
+        containsAll(['Marca A', 'Marca B']));
+    expect(result.products.first.brand, 'Marca A');
+    expect(result.products.first.offers.first.price, 1800);
+
+    service.close();
+  });
 }
