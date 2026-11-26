@@ -62,7 +62,9 @@ function vtexProducts(products, store, domain) {
         variant: item.name ?? null,
         price: parsePrice(offer.Price ?? offer.price),
         listPrice: parsePrice(offer.ListPrice ?? offer.listPrice),
-        stock: Number(offer.AvailableQuantity ?? offer.availableQuantity ?? 0),
+        stock: offer.AvailableQuantity == null && offer.availableQuantity == null
+          ? null
+          : Number(offer.AvailableQuantity ?? offer.availableQuantity),
         image: item.images?.[0]?.imageUrl ?? null,
         url: productUrl,
         priceType: 'online_default_channel',
@@ -242,10 +244,7 @@ export default {
     }
     const limit = Math.max(1, Math.min(20, Number(url.searchParams.get('limit') ?? 10) || 10));
 
-    const cacheKey = new Request(
-      `https://comparador-cache.invalid/search?q=${encodeURIComponent(query.toLowerCase())}&limit=${limit}`,
-      { method: 'GET' },
-    );
+    const cacheKey = new Request(request.url, { method: 'GET' });
     const cache = caches.default;
     const cached = await cache.match(cacheKey);
     if (cached) {
@@ -258,7 +257,14 @@ export default {
     // VTEX permits six simultaneous outbound connections on the free Worker plan.
     const vtexResults = await Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
     // Coto is a separate Endeca-based adapter; run it after the six VTEX requests.
-    const cotoResult = await searchCoto(query, limit);
+    let cotoQuery = query;
+    if (/^\\d{8,14}$/.test(query)) {
+      const matchedVtexProduct = vtexResults
+        .flatMap((result) => result.offers)
+        .find((offer) => offer.ean === query);
+      if (matchedVtexProduct?.name) cotoQuery = matchedVtexProduct.name;
+    }
+    const cotoResult = await searchCoto(cotoQuery, limit);
     const storeResults = [...vtexResults, cotoResult];
     const offers = storeResults.flatMap((result) => result.offers);
     const responseBody = {
