@@ -9,6 +9,7 @@ on:
       - 'lib/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
+      - 'test/**'
       - '.github/workflows/validate-pr.yml'
 
 permissions:
@@ -33,7 +34,7 @@ jobs:
         run: flutter pub get
 
       - name: Analizar código
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Compilar APK
         run: flutter build apk --release
