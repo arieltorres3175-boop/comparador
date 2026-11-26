@@ -75,7 +75,8 @@ function vtexProducts(products, store, domain) {
 }
 
 function cotoProducts(data) {
-  const records = data?.contents?.[0]?.Main?.[2]?.contents?.[0]?.records ?? [];
+  const resultGroups = data?.contents?.[0]?.Main?.[2]?.contents ?? [];
+  const records = resultGroups.flatMap((group) => group?.records ?? []);
   return records.flatMap((record) => {
     const attrs = record?.records?.[0]?.attributes ?? {};
     const value = (key) => attrs[key]?.[0] ?? null;
@@ -254,19 +255,36 @@ export default {
       return new Response(cached.body, { status: cached.status, headers });
     }
 
-    // VTEX permits six simultaneous outbound connections on the free Worker plan.
-    const vtexResults = await Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
-    // Coto is a separate Endeca-based adapter; run it after the six VTEX requests.
+    const isBarcode = /^\d{8,14}$/.test(query);
+    const vtexPromise = Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
+    // Text searches query all seven chains concurrently. EAN searches first
+    // resolve the product name from VTEX, then query Coto with that name.
+    const cotoPromise = isBarcode ? null : searchCoto(query, limit);
+    const vtexResults = await vtexPromise;
     let cotoQuery = query;
-    if (/^\d{8,14}$/.test(query)) {
+    if (isBarcode) {
       const matchedVtexProduct = vtexResults
         .flatMap((result) => result.offers)
         .find((offer) => offer.ean === query);
       if (matchedVtexProduct?.name) cotoQuery = matchedVtexProduct.name;
     }
-    const cotoResult = await searchCoto(cotoQuery, limit);
+    const cotoResult = isBarcode
+      ? await searchCoto(cotoQuery, limit)
+      : await cotoPromise;
     const storeResults = [...vtexResults, cotoResult];
-    const offers = storeResults.flatMap((result) => result.offers);
+    let offers = storeResults.flatMap((result) => result.offers);
+    if (!isBarcode) {
+      const terms = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      offers = offers.filter((offer) => {
+        const words = offer.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        if (!terms.every((term) => words.includes(term))) return false;
+        if (terms.length === 1 && terms[0] === 'leche' &&
+            words[0] === 'dulce' && words[1] === 'de') return false;
+        return true;
+      });
+    }
     const responseBody = {
       query,
       generatedAt: new Date().toISOString(),
