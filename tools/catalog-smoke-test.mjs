@@ -143,7 +143,7 @@ async function checkCotoExactEan(ean) {
   url.searchParams.set('_dyncharset', 'utf8');
   url.searchParams.set('Dy', '1');
   url.searchParams.set('Nrpp', '20');
-  url.searchParams.set('Ntt', ean);
+  url.searchParams.set('Ntt', process.env.COTO_VERIFY_QUERY?.trim() || 'arroz con leche Tregar');
   url.searchParams.set('idSucursal', '200');
   url.searchParams.set('format', 'json');
   try {
