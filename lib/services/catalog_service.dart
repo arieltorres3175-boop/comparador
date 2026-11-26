@@ -197,7 +197,7 @@ class CatalogService {
 
     if (kIsWeb) {
       final workerResult = await _searchThroughWorker(sourceQuery, limit);
-      if (RegExp(r'^\\d{8,14}$').hasMatch(sourceQuery)) {
+      if (RegExp(r'^\d{8,14}$').hasMatch(sourceQuery)) {
         return CatalogSearchResult(
           query: query,
           generatedAt: workerResult.generatedAt,
@@ -216,7 +216,7 @@ class CatalogService {
       );
     }
 
-    final isBarcode = RegExp(r'^\\d{8,14}$').hasMatch(sourceQuery);
+    final isBarcode = RegExp(r'^\d{8,14}$').hasMatch(sourceQuery);
     final vtexFuture = Future.wait(
       _vtexStores.map((store) => _searchVtex(store, sourceQuery, limit)),
     );
