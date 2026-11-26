@@ -104,8 +104,9 @@ class ProductFacets {
       });
       match('Envase', {
         r'\bsachet\b': 'Sachet',
+        r'\b(botella|bot|pet|envase plastico|plastica|plastico)\b': 'Botella plástica',
         r'\b(caja|brick|brik|tetra|tetrabrik)\b': 'Caja de cartón',
-      });    } else if (category == 'Café') {
+      });} else if (category == 'Café') {
       match('Preparación', {
         r'\b(instantaneo|soluble)\b': 'Instantáneo',
         r'\bmolido\b': 'Molido',
