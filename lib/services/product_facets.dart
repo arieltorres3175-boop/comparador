@@ -87,21 +87,25 @@ class ProductFacets {
 
     if (category == 'Leche') {
       match('Tipo', {
-        r'\bsin lactosa\b': 'Sin lactosa',
-        r'\bsemidescremada\b': 'Semidescremada',
+        r'\b(en polvo|polvo)\b': 'En polvo',
+        r'\bcondensada\b': 'Condensada',
+        r'\b(chocolatada|saborizada)\b': 'Chocolatada / saborizada',
+        r'\binfantil\b': 'Infantil',
+        r'\b(larga vida|uat|uht|ultrapasteurizada|tetra|tetrabrik|brik)\b': 'Larga vida',
+        r'\bfresca\b': 'Fresca',
+      });
+      match('Variedad', {
+        r'\bsin lactosa\b|\bzero lactosa\b': 'Sin lactosa',
+        r'\bparcialmente descremada\b|\bsemidescremada\b': 'Parcialmente descremada',
         r'\bdescremada\b': 'Descremada',
         r'\bentera\b': 'Entera',
-        r'\b(en polvo|polvo)\b': 'En polvo',
-        r'\b(chocolatada|saborizada)\b': 'Saborizada',
-        r'\binfantil\b': 'Infantil',
+        r'\b(protein|proteina|proteica)\b': 'Con proteína',
+        r'\b(fortificada|con hierro|con calcio|multivit)\b': 'Fortificada',
       });
-      match('Presentación', {
+      match('Envase', {
         r'\bsachet\b': 'Sachet',
-        r'\b(larga vida|tetra|tetrabrik)\b': 'Larga vida / Tetra',
-        r'\bbotella\b': 'Botella',
-        r'\bcaja\b': 'Caja',
-      });
-    } else if (category == 'Café') {
+        r'\b(caja|brick|brik|tetra|tetrabrik)\b': 'Caja de cartón',
+      });    } else if (category == 'Café') {
       match('Preparación', {
         r'\b(instantaneo|soluble)\b': 'Instantáneo',
         r'\bmolido\b': 'Molido',
@@ -190,6 +194,7 @@ class ProductFacets {
     ).firstMatch(text);
     if (size != null) {
       final rawUnit = size.group(2)!;
+      final amount = double.tryParse(size.group(1)!.replaceAll(',', '.'));
       final unit = rawUnit.startsWith('gr') || rawUnit.startsWith('gram')
           ? 'g'
           : rawUnit == 'cc'
@@ -197,9 +202,41 @@ class ProductFacets {
               : rawUnit.startsWith('l')
                   ? 'l'
                   : rawUnit;
-      result['Contenido'] = '${size.group(1)} $unit';
+      if (category == 'Leche' && amount != null && unit == 'ml' && amount >= 1000) {
+        final liters = amount / 1000;
+        result['Contenido'] = '${liters == liters.roundToDouble() ? liters.toInt() : liters} L';
+      } else if (category == 'Leche' && amount != null && unit == 'l') {
+        result['Contenido'] = '${amount == amount.roundToDouble() ? amount.toInt() : amount} L';
+      } else {
+        result['Contenido'] = '${size.group(1)} $unit';
+      }
     }
     return result;
+  }
+
+  static const _milkBrands = <String>[
+    'La Serenísima', 'Las Tres Niñas', 'Sancor', 'Milkaut', 'Tregar',
+    'Ilolay', 'Manfrey', 'Casanto', 'DIA', 'Verónica', 'Conaprole',
+    'La Suipachense', 'Punta del Agua', 'Lactear',
+  ];
+
+  static List<String> availableBrands(String category, Iterable<String> productNames) {
+    final found = <String>{};
+    for (final raw in productNames) {
+      final text = normalize(raw);
+      if (category == 'Leche') {
+        for (final brand in _milkBrands) {
+          if (text.contains(normalize(brand))) found.add(brand);
+        }
+      }
+    }
+    final sorted = found.toList()..sort();
+    return sorted;
+  }
+
+  static bool matchesBrand(String category, String brand, String productText) {
+    final normalizedBrand = normalize(brand);
+    return normalizedBrand.isEmpty || normalize(productText).contains(normalizedBrand);
   }
 
   static Map<String, List<String>> available(
@@ -232,7 +269,7 @@ class ProductFacets {
     const options = <String, Map<String, List<String>>>{
       'Leche': {
         'Tipo': ['Entera', 'Descremada', 'Semidescremada', 'Sin lactosa', 'En polvo', 'Infantil', 'Saborizada'],
-        'Presentación': ['Sachet', 'Larga vida / Tetra', 'Botella', 'Caja'],
+        'Envase': ['Sachet', 'Caja de cartón'],
       },
       'Café': {
         'Preparación': ['Torrado', 'Tostado', 'Instantáneo', 'Molido', 'En grano'],
