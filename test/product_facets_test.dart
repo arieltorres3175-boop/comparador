@@ -37,6 +37,14 @@ void main() {
     expect(values.containsKey('Preparación'), isFalse);
   });
 
+  test('category search rejects unrelated products that merely contain the word leche', () {
+    expect(ProductFacets.isCategoryProduct('Leche', 'Leche entera 1 litro'), isTrue);
+    expect(ProductFacets.isCategoryProduct('Leche', 'La Serenisima Leche descremada 1 L'), isTrue);
+    expect(ProductFacets.isCategoryProduct('Leche', 'Chocolate con leche Milka 150 g'), isFalse);
+    expect(ProductFacets.isCategoryProduct('Leche', 'Oblea Leche 4 Fingers'), isFalse);
+    expect(ProductFacets.isCategoryProduct('Leche', 'Arroz con leche Tregar 180 g'), isFalse);
+  });
+
   test('selected facets narrow only products with matching attributes', () {
     expect(
       ProductFacets.matches('Leche', 'Leche entera sachet 1 L',
