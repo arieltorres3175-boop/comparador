@@ -11,6 +11,30 @@ class ProductFacets {
       .replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u')
       .replaceAll('ü', 'u');
 
+  static bool isCategoryProduct(String category, String value) {
+    final text = normalize(value);
+    final words = text.split(RegExp(r'[^a-z0-9]+')).where((word) => word.isNotEmpty).toSet();
+    if (category == 'Leche') {
+      if (!words.contains('leche')) return false;
+      if (text.trimLeft().startsWith('leche ')) return true;
+      const milkDescriptors = {
+        'entera', 'descremada', 'semidescremada', 'liviana', 'protein',
+        'fortificada', 'chocolatada', 'sachet', 'lactosa', 'multidefensa',
+        'larga', 'uat', 'fresca', 'polvo',
+      };
+      return words.any(milkDescriptors.contains) ||
+          RegExp(r'\d+(?:[.,]\d+)?\s?(?:l|lt|litro|litros)\b').hasMatch(text);
+    }
+    if (category == 'Café') {
+      return words.contains('cafe') && !words.contains('cafetera');
+    }
+    if (category == 'Manteca') {
+      return words.contains('manteca') &&
+          !words.contains('cacao') && !words.contains('corporal');
+    }
+    return words.contains(normalize(category));
+  }
+
   static Map<String, String> extract(String category, String value) {
     final text = normalize(value);
     final result = <String, String>{};
