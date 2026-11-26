@@ -134,6 +134,36 @@ void main() {
             }
           ],
         },
+        {
+          'productName': 'Dulce de leche clásico 400 g',
+          'brand': 'Marca C',
+          'link': '/dulce-de-leche/p',
+          'items': [
+            {
+              'ean': '7790000000003',
+              'name': '400 g',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 1900, 'ListPrice': 1900}}
+              ],
+            }
+          ],
+        },
+        {
+          'productName': 'Chicle sin azúcar',
+          'brand': 'Marca D',
+          'link': '/chicle/p',
+          'items': [
+            {
+              'ean': '7790000000004',
+              'name': 'unidad',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 500, 'ListPrice': 500}}
+              ],
+            }
+          ],
+        },
       ];
       return http.Response(jsonEncode(products), 206);
     });
