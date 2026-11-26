@@ -183,38 +183,50 @@ class CatalogService {
 
   final http.Client _client;
 
-  Future<CatalogSearchResult> search(String rawQuery, {int limit = 20}) async {
+  Future<CatalogSearchResult> search(
+    String rawQuery, {
+    int limit = 20,
+    String? catalogQuery,
+  }) async {
     limit = limit.clamp(1, 50).toInt();
     final query = rawQuery.trim();
-    if (query.length < 2) {
+    final sourceQuery = (catalogQuery ?? query).trim();
+    if (query.length < 2 || sourceQuery.length < 2) {
       throw Exception('Escribí al menos dos caracteres para buscar.');
     }
 
     if (kIsWeb) {
-      final workerResult = await _searchThroughWorker(query, limit);
-      if (RegExp(r'^\d{8,14}$').hasMatch(query)) return workerResult;
+      final workerResult = await _searchThroughWorker(sourceQuery, limit);
+      if (RegExp(r'^\\d{8,14}$').hasMatch(sourceQuery)) {
+        return CatalogSearchResult(
+          query: query,
+          generatedAt: workerResult.generatedAt,
+          products: workerResult.products,
+          stores: workerResult.stores,
+        );
+      }
       final filteredProducts = workerResult.products
-          .where((product) => _matchesSearchQuery(product.name, query))
+          .where((product) => _matchesSearchQuery(product.name, sourceQuery))
           .toList();
       return CatalogSearchResult(
-        query: workerResult.query,
+        query: query,
         generatedAt: workerResult.generatedAt,
         products: filteredProducts,
         stores: workerResult.stores,
       );
     }
 
-    final isBarcode = RegExp(r'^\d{8,14}$').hasMatch(query);
+    final isBarcode = RegExp(r'^\\d{8,14}$').hasMatch(sourceQuery);
     final vtexFuture = Future.wait(
-      _vtexStores.map((store) => _searchVtex(store, query, limit)),
+      _vtexStores.map((store) => _searchVtex(store, sourceQuery, limit)),
     );
-    final cotoFuture = isBarcode ? null : _searchCoto(query, limit);
+    final cotoFuture = isBarcode ? null : _searchCoto(sourceQuery, limit);
     final vtexResults = await vtexFuture;
 
-    var cotoQuery = query;
+    var cotoQuery = sourceQuery;
     if (isBarcode) {
       for (final result in vtexResults) {
-        final match = result.offers.where((offer) => offer.ean == query);
+        final match = result.offers.where((offer) => offer.ean == sourceQuery);
         if (match.isNotEmpty) {
           cotoQuery = match.first.name;
           break;
@@ -232,7 +244,7 @@ class CatalogService {
             .map((result) => _StoreSearch(
                   result.status,
                   result.offers
-                      .where((offer) => _matchesSearchQuery(offer.name, query))
+                      .where((offer) => _matchesSearchQuery(offer.name, sourceQuery))
                       .toList(),
                 ))
             .toList();
