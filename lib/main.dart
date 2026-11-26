@@ -416,6 +416,15 @@ class _HomePageState extends State<HomePage> {
           style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
+        if (query.isNotEmpty && !searching)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _copySearch,
+              icon: const Icon(Icons.copy),
+              label: const Text('Copiar búsqueda'),
+            ),
+          ),
         if (searching) ...[
           const LinearProgressIndicator(),
           const SizedBox(height: 12),
