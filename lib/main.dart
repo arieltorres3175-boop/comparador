@@ -564,6 +564,17 @@ class _HomePageState extends State<HomePage> {
           ),
           onChanged: _updateCategoryFromQuery,
         ),
+        if (query.length >= 2) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: searching ? null : _addQuickItem,
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Agregar a mi lista sin buscar precios'),
+            ),
+          ),
+        ],
         if (selectedCategory != null) ...[
           const SizedBox(height: 16),
           Text('Filtros para $selectedCategory', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
@@ -625,12 +636,6 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(color: Colors.black54, fontSize: 12)),
         ],
         const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: query.length < 2 || searching ? null : _addQuickItem,
-          icon: const Icon(Icons.playlist_add),
-          label: const Text('Agregar a mi lista sin buscar precios'),
-        ),
-        const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: query.length < 2 || searching ? null : () => _performSearch(keepDiscovery: true),
           icon: searching
