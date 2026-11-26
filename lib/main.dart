@@ -101,6 +101,8 @@ class _HomePageState extends State<HomePage> {
   bool searching = false;
   String? message;
   String? searchError;
+  String? selectedBrand;
+  String sortMode = 'price';
   CatalogSearchResult? searchResult;
 
   @override
@@ -143,6 +145,33 @@ class _HomePageState extends State<HomePage> {
 
   String get query => searchController.text.trim();
 
+  List<String> get _availableBrands {
+    final brands = searchResult?.products
+            .map((product) => product.brand?.trim() ?? '')
+            .where((brand) => brand.isNotEmpty)
+            .toSet()
+            .toList() ??
+        <String>[];
+    brands.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return brands;
+  }
+
+  List<CatalogProduct> get _visibleProducts {
+    final products = (searchResult?.products ?? <CatalogProduct>[])
+        .where((product) =>
+            selectedBrand == null || product.brand == selectedBrand)
+        .toList();
+    if (sortMode == 'brand') {
+      products.sort((a, b) => (a.brand ?? a.name)
+          .toLowerCase()
+          .compareTo((b.brand ?? b.name).toLowerCase()));
+    } else {
+      products.sort((a, b) =>
+          a.offers.first.price.compareTo(b.offers.first.price));
+    }
+    return products;
+  }
+
   Future<void> _performSearch() async {
     if (query.length < 2 || searching) return;
     FocusScope.of(context).unfocus();
@@ -151,6 +180,8 @@ class _HomePageState extends State<HomePage> {
       searching = true;
       searchError = null;
       searchResult = null;
+      selectedBrand = null;
+      sortMode = 'price';
     });
     try {
       final result = await catalogService.search(query);
@@ -480,11 +511,60 @@ class _HomePageState extends State<HomePage> {
           ] else ...[
             const SizedBox(height: 8),
             Text(
-              '${result.products.length} coincidencias',
+              '${result.products.length} opciones encontradas',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
+            const Text(
+              'Elegí la marca y presentación que prefieras. Por defecto, las opciones están ordenadas desde el menor precio.',
+              style: TextStyle(color: Colors.black54, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                DropdownButton<String>(
+                  value: selectedBrand,
+                  hint: const Text('Todas las marcas'),
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Todas las marcas'),
+                    ),
+                    ..._availableBrands.map((brand) =>
+                        DropdownMenuItem<String>(
+                          value: brand,
+                          child: Text(brand),
+                        )),
+                  ],
+                  onChanged: (value) => setState(() => selectedBrand = value),
+                ),
+                DropdownButton<String>(
+                  value: sortMode,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'price',
+                      child: Text('Menor precio primero'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'brand',
+                      child: Text('Ordenar por marca'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => sortMode = value ?? 'price'),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            ...result.products.map(_productCard),
+            if (_visibleProducts.isEmpty)
+              const Text('No hay productos para esa marca.')
+            else
+              ..._visibleProducts.map(_productCard),
           ],
           const SizedBox(height: 12),
           const _Notice(
@@ -557,6 +637,13 @@ class _HomePageState extends State<HomePage> {
                         Text(product.brand!,
                             style: const TextStyle(
                                 color: Colors.black54, fontSize: 12)),
+                      if (imageOffer.variant != null &&
+                          imageOffer.variant!.trim().isNotEmpty)
+                        Text(
+                          imageOffer.variant!,
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 11),
+                        ),
                       Text(
                         product.comparableByEan
                             ? 'EAN: ${product.ean}'
