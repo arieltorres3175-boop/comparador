@@ -662,7 +662,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Elegí la marca y presentación que prefieras. Por defecto, las opciones están ordenadas desde el menor precio.',
+              'Estos son los productos que coinciden con los filtros elegidos. Por defecto, están ordenados desde el menor precio.',
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
             const SizedBox(height: 10),
