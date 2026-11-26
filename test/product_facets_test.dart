@@ -37,7 +37,17 @@ void main() {
       expect(facets['Contenido'], '1 L');
     });
 
-    test('no inventa un filtro de botella', () {
+    test('detecta botella plástica cuando el catálogo la informa', () {
+      final facets = ProductFacets.extract(
+        'Leche',
+        'Leche UAT La Serenísima clásica 3% botella PET 1 L',
+      );
+
+      expect(facets['Envase'], 'Botella plástica');
+      expect(facets['Contenido'], '1 L');
+    });
+
+    test('no inventa un filtro de envase cuando no hay datos', () {
       final facets = ProductFacets.extract('Leche', 'Leche La Serenísima 1 L');
 
       expect(facets.containsKey('Envase'), isFalse);
