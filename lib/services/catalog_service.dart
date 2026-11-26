@@ -590,7 +590,7 @@ bool _matchesSearchQuery(String productName, String query) {
   final productTerms = normalizedName.split(' ');
   if (!terms.every(productTerms.contains)) return false;
   if (terms.length == 1 &&
-      const {'leche', 'cafe', 'manteca'}.contains(terms.first)) {
+      ['leche', 'cafe', 'manteca'].contains(terms.first)) {
     final category = terms.first == 'cafe'
         ? 'Café'
         : terms.first == 'leche'
