@@ -282,9 +282,9 @@ class CatalogService {
       final decodedProducts = <Map<String, dynamic>>[];
       var lastStatus = 200;
 
-      // VTEX pagina los resultados en bloques. Seguimos consultando hasta
-      // recibir una página incompleta o vacía, con un límite de seguridad.
-      for (var offset = 0, page = 0; page < 200; offset += limit, page++) {
+      // VTEX pagina los resultados en bloques. Seguimos consultando hasta recibir una página incompleta o vacía, con un máximo de dos páginas
+      // para que la selección inicial no demore minutos.
+      for (var offset = 0, page = 0; page < 2; offset += limit, page++) {
         final uri = Uri.https(
           store.domain,
           '/api/catalog_system/pub/products/search',
@@ -417,9 +417,9 @@ class CatalogService {
       final allRecords = <Map<String, dynamic>>[];
       var lastStatus = 200;
 
-      // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos todas las
-      // páginas disponibles hasta que el buscador devuelve menos resultados.
-      for (var offset = 0, page = 0; page < 200; offset += limit, page++) {
+      // Coto utiliza paginación Endeca (No + Nrpp). Para la selección inicial
+      // consultamos como máximo dos páginas y evitamos esperas excesivas.
+      for (var offset = 0, page = 0; page < 2; offset += limit, page++) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
           '/sitios/cdigi/categoria',
