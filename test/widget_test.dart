@@ -23,13 +23,14 @@ void main() {
     await tester.enterText(find.byType(TextField).first, 'leche');
     await tester.pump();
     expect(find.text('Filtros para Leche'), findsOneWidget);
+
+    final textFields = find.byType(TextField);
+    expect(textFields, findsNWidgets(2));
     expect(
-      find.byWidgetPredicate(
-        (widget) => widget is TextField &&
-            widget.decoration?.labelText == 'Marca (opcional)',
-      ),
-      findsOneWidget,
+      tester.widget<TextField>(textFields.at(1)).decoration.labelText,
+      'Marca (opcional)',
     );
+
     expect(find.text('Buscar en los supermercados'), findsOneWidget);
     expect(find.text('Consultando los catálogos online...'), findsNothing);
   });
