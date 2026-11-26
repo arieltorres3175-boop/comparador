@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'lib/**'
+      - 'android/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - 'test/**'
@@ -30,6 +31,9 @@ jobs:
 
       - name: Preparar plataformas Android y Web
         run: flutter create . --platforms=android,web
+
+      - name: Verificar permiso de Internet en Android RELEASE
+        run: grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
 
       - name: Instalar dependencias
         run: flutter pub get
