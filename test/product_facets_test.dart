@@ -23,6 +23,7 @@ void main() {
 
     expect(values['Preparación'], containsAll(['Molido', 'Instantáneo', 'En grano']));
     expect(values['Proceso'], containsAll(['Tostado', 'Torrado']));
+    expect(values['Contenido'], contains('500 g'));
     expect(values.containsKey('Presentación'), isFalse);
   });
 
