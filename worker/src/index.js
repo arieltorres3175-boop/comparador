@@ -158,25 +158,36 @@ function groupByExactEan(offers) {
 async function searchVtex(store, query, limit) {
   const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
   url.searchParams.set('ft', query);
-  url.searchParams.set('_from', '0');
-  url.searchParams.set('_to', String(limit - 1));
   try {
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-        'user-agent': 'ComparadorInteligente/0.1 (public product search)',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!response.ok) {
-      return { store: store.name, ok: false, status: response.status, offers: [] };
+    const allProducts = [];
+    let status = 200;
+    // Keep web and Android coverage aligned: fetch at most two VTEX pages.
+    for (let offset = 0; offset < limit * 2; offset += limit) {
+      url.searchParams.set('_from', String(offset));
+      url.searchParams.set('_to', String(offset + limit - 1));
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+          'user-agent': 'ComparadorInteligente/0.1 (public product search)',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      status = response.status;
+      if (!response.ok) {
+        return { store: store.name, ok: false, status: response.status, offers: [] };
+      }
+      const products = await response.json();
+      if (!Array.isArray(products)) {
+        return { store: store.name, ok: false, status: response.status, error: 'Formato de catálogo inesperado', offers: [] };
+      }
+      allProducts.push(...products);
+      if (products.length < limit) break;
     }
-    const products = await response.json();
     return {
       store: store.name,
       ok: true,
-      status: response.status,
-      offers: vtexProducts(products, store.name, store.domain),
+      status,
+      offers: vtexProducts(allProducts, store.name, store.domain),
     };
   } catch (error) {
     return {
@@ -197,23 +208,35 @@ async function searchCoto(query, limit) {
   url.searchParams.set('idSucursal', '200');
   url.searchParams.set('format', 'json');
   try {
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-        referer: 'https://www.cotodigital.com.ar/',
-        'user-agent': 'Mozilla/5.0 (compatible; ComparadorInteligente/0.1)',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!response.ok) {
-      return { store: 'Coto', ok: false, status: response.status, offers: [] };
+    const allRecords = [];
+    let status = 200;
+    // Coto's Endeca API paginates with No/Nrpp. Cap at two pages for latency.
+    for (let offset = 0; offset < limit * 2; offset += limit) {
+      url.searchParams.set('No', String(offset));
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+          referer: 'https://www.cotodigital.com.ar/',
+          'user-agent': 'Mozilla/5.0 (compatible; ComparadorInteligente/0.1)',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      status = response.status;
+      if (!response.ok) {
+        return { store: 'Coto', ok: false, status: response.status, offers: [] };
+      }
+      const data = await response.json();
+      const groups = data?.contents?.[0]?.Main?.[2]?.contents ?? [];
+      const records = groups.flatMap((group) => group?.records ?? []);
+      if (records.length === 0) break;
+      allRecords.push(...records);
+      if (records.length < limit) break;
     }
-    const data = await response.json();
     return {
       store: 'Coto',
       ok: true,
-      status: response.status,
-      offers: cotoProducts(data),
+      status,
+      offers: cotoProducts({ contents: [{ Main: [null, null, { contents: allRecords.map((record) => ({ records: [record] })) }] }] }),
     };
   } catch (error) {
     return {
