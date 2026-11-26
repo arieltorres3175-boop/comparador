@@ -242,7 +242,7 @@ export default {
     if (query.length < 2 || query.length > 80) {
       return json({ error: 'La búsqueda debe tener entre 2 y 80 caracteres.' }, 400);
     }
-    const limit = Math.max(1, Math.min(20, Number(url.searchParams.get('limit') ?? 10) || 10));
+    const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') ?? 50) || 50));
 
     const cacheKey = new Request(request.url, { method: 'GET' });
     const cache = caches.default;
