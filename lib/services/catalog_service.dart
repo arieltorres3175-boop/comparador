@@ -367,58 +367,67 @@ class CatalogService {
   }
 
   Future<_StoreSearch> _searchCoto(String query, int limit) async {
-    final uri = Uri.https(
-      'www.cotodigital.com.ar',
-      '/sitios/cdigi/categoria',
-      {
-        '_dyncharset': 'utf8',
-        'Dy': '1',
-        'Nrpp': '$limit',
-        'Ntt': query,
-        'idSucursal': '200',
-        'format': 'json',
-      },
-    );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {
-          'accept': 'application/json',
-          'referer': 'https://www.cotodigital.com.ar/',
-          'user-agent': 'Mozilla/5.0 ComparadorInteligente/0.1',
-        },
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        return _StoreSearch(
-          StoreStatus(
-            store: 'Coto',
-            ok: false,
-            status: response.statusCode,
-            error: 'El catálogo no respondió correctamente.',
-          ),
-          const [],
+      final allRecords = <Map<String, dynamic>>[];
+      var lastStatus = 200;
+
+      // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos las páginas
+      // disponibles hasta que el buscador devuelve menos resultados.
+      for (var offset = 0; offset < limit * 100; offset += limit) {
+        final uri = Uri.https(
+          'www.cotodigital.com.ar',
+          '/sitios/cdigi/categoria',
+          {
+            '_dyncharset': 'utf8',
+            'Dy': '1',
+            'No': '$offset',
+            'Nrpp': '$limit',
+            'Ntt': query,
+            'idSucursal': '200',
+            'format': 'json',
+          },
         );
+        final response = await _client.get(
+          uri,
+          headers: {
+            'accept': 'application/json',
+            'referer': 'https://www.cotodigital.com.ar/',
+            'user-agent': 'Mozilla/5.0 ComparadorInteligente/0.1',
+          },
+        );
+        lastStatus = response.statusCode;
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          return _StoreSearch(
+            StoreStatus(
+              store: 'Coto',
+              ok: false,
+              status: response.statusCode,
+              error: 'El catálogo no respondió correctamente.',
+            ),
+            const [],
+          );
+        }
+
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final contents = decoded['contents'] as List<dynamic>? ?? [];
+        final main = contents.isNotEmpty && contents.first is Map<String, dynamic>
+            ? (contents.first as Map<String, dynamic>)['Main'] as List<dynamic>? ?? []
+            : [];
+        final pageRecords = main.length > 2 && main[2] is Map<String, dynamic>
+            ? ((main[2] as Map<String, dynamic>)['contents'] as List<dynamic>? ?? [])
+                .whereType<Map<String, dynamic>>()
+                .expand((item) => (item['records'] as List<dynamic>? ?? []))
+                .whereType<Map<String, dynamic>>()
+                .toList()
+            : <Map<String, dynamic>>[];
+
+        if (pageRecords.isEmpty) break;
+        allRecords.addAll(pageRecords);
+        if (pageRecords.length < limit) break;
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      final contents = decoded['contents'] as List<dynamic>? ?? [];
-      final main = contents.isNotEmpty && contents.first is Map<String, dynamic>
-          ? (contents.first as Map<String, dynamic>)['Main'] as List<dynamic>? ??
-              []
-          : [];
-      final records = main.length > 2 &&
-              main[2] is Map<String, dynamic>
-          ? ((main[2] as Map<String, dynamic>)['contents']
-                      as List<dynamic>? ??
-                  [])
-              .whereType<Map<String, dynamic>>()
-              .expand((item) =>
-                  (item['records'] as List<dynamic>? ?? []))
-              .toList()
-          : <dynamic>[];
-
       final offers = <StoreOffer>[];
-      for (final rawRecord in records.whereType<Map<String, dynamic>>()) {
+      for (final rawRecord in allRecords) {
         final recordRows = rawRecord['records'] as List<dynamic>? ?? [];
         if (recordRows.isEmpty || recordRows.first is! Map<String, dynamic>) {
           continue;
@@ -477,7 +486,7 @@ class CatalogService {
       }
 
       return _StoreSearch(
-        StoreStatus(store: 'Coto', ok: true, status: response.statusCode),
+        StoreStatus(store: 'Coto', ok: true, status: lastStatus),
         offers,
       );
     } catch (error) {
