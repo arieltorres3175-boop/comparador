@@ -669,60 +669,17 @@ class _HomePageState extends State<HomePage> {
               'Elegí la marca y presentación que prefieras. Por defecto, las opciones están ordenadas desde el menor precio.',
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
-            if (selectedCategory != null && _availableFacets.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('Filtrar esta categoría',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: _availableFacets.entries.map((facet) =>
-                    DropdownButton<String>(
-                      value: selectedFacets[facet.key],
-                      hint: Text(facet.key),
-                      underline: const SizedBox.shrink(),
-                      items: [
-                        DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('Todos: ${facet.key.toLowerCase()}'),
-                        ),
-                        ...facet.value.map((value) => DropdownMenuItem<String>(
-                              value: value, child: Text(value))),
-                      ],
-                      onChanged: (value) => setState(() {
-                        if (value == null) {
-                          selectedFacets.remove(facet.key);
-                        } else {
-                          selectedFacets[facet.key] = value;
-                        }
-                      }),
-                    )).toList(),
-              ),
-            ],
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                DropdownButton<String>(
-                  value: selectedBrand,
-                  hint: const Text('Todas las marcas'),
-                  underline: const SizedBox.shrink(),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Todas las marcas'),
-                    ),
-                    ..._availableBrands.map((brand) =>
-                        DropdownMenuItem<String>(
-                          value: brand,
-                          child: Text(brand),
-                        )),
-                  ],
-                  onChanged: (value) => setState(() => selectedBrand = value),
-                ),
+            DropdownButton<String>(
+              value: sortMode,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(value: 'price', child: Text('Menor precio primero')),
+                DropdownMenuItem(value: 'brand', child: Text('Ordenar por marca')),
+              ],
+              onChanged: (value) => setState(() => sortMode = value ?? 'price'),
+            ),
+            const SizedBox(height: 8),
                 DropdownButton<String>(
                   value: sortMode,
                   underline: const SizedBox.shrink(),
