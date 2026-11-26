@@ -170,7 +170,7 @@ class _HomePageState extends State<HomePage> {
   List<CatalogProduct> get _visibleProducts {
     final products = (searchResult?.products ?? <CatalogProduct>[])
         .where((product) =>
-            (selectedBrand == null || product.brand == selectedBrand) &&
+            (selectedBrand == null || ProductFacets.normalize(product.brand ?? '') == ProductFacets.normalize(selectedBrand!)) &&
             (selectedCategory == null ||
                 (ProductFacets.isCategoryProduct(
                       selectedCategory!,
