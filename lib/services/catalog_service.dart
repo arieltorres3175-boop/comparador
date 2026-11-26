@@ -183,7 +183,7 @@ class CatalogService {
 
   final http.Client _client;
 
-  Future<CatalogSearchResult> search(String rawQuery, {int limit = 50}) async {
+  Future<CatalogSearchResult> search(String rawQuery, {int limit = 20}) async {
     limit = limit.clamp(1, 50).toInt();
     final query = rawQuery.trim();
     if (query.length < 2) {
@@ -407,7 +407,7 @@ class CatalogService {
 
       // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos las páginas
       // disponibles hasta que el buscador devuelve menos resultados.
-      for (var offset = 0; offset < limit * 100; offset += limit) {
+      // Coto puede devolver miles de coincidencias para búsquedas amplias.\n      // Consultamos como máximo dos páginas por cadena para evitar esperas\n      // de minutos; el usuario puede afinar la búsqueda con filtros.\n      for (var offset = 0; offset < limit * 2; offset += limit) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
           '/sitios/cdigi/categoria',
