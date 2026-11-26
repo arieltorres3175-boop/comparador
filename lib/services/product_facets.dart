@@ -58,7 +58,7 @@ class ProductFacets {
     final size = RegExp(r'\b(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt)\b')
         .firstMatch(text);
     if (size != null) {
-      result['Contenido'] = '\${size.group(1)} \${size.group(2)}';
+      result['Contenido'] = size.group(1)! + ' ' + size.group(2)!;
     }
     return result;
   }
