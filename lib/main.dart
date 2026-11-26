@@ -95,6 +95,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final searchController = TextEditingController();
+  final brandController = TextEditingController();
   final basket = <ShoppingItem>[];
   final catalogService = CatalogService();
   int page = 0;
@@ -118,6 +119,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     searchController.dispose();
+    brandController.dispose();
     catalogService.close();
     super.dispose();
   }
@@ -162,11 +164,7 @@ class _HomePageState extends State<HomePage> {
 
   Map<String, List<String>> get _availableFacets {
     if (selectedCategory == null) return const {};
-    return ProductFacets.available(
-      selectedCategory!,
-      ((discoveryResult ?? searchResult)?.products ?? <CatalogProduct>[]).map((product) =>
-          '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}'),
-    );
+    return ProductFacets.initialOptions(selectedCategory!);
   }
 
   List<CatalogProduct> get _visibleProducts {
@@ -196,16 +194,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _queryForSelectedFilters() {
-    if (selectedBrand != null && selectedBrand!.trim().isNotEmpty) {
-      return selectedBrand!.trim();
-    }
+    final parts = <String>[query];
+    final brand = selectedBrand?.trim() ?? '';
+    if (brand.isNotEmpty) parts.add(brand);
     for (final entry in selectedFacets.entries) {
-      if (entry.key == 'Contenido' || entry.value.contains('/')) continue;
-      final words = entry.value.trim().split(RegExp(r'\s+'));
-      final token = words.isEmpty ? '' : words.last;
-      if (token.length >= 3) return token;
+      if (entry.key == 'Contenido') continue;
+      final value = entry.value.trim();
+      if (value.isNotEmpty && !value.contains('/')) parts.add(value);
     }
-    return query;
+    return parts.join(' ');
+  }
+
+  void _updateCategoryFromQuery(String value) {
+    final category = ProductFacets.categoryForQuery(value);
+    if (category == selectedCategory) return;
+    setState(() {
+      selectedCategory = category;
+      selectedFacets.clear();
+      selectedBrand = null;
+      brandController.clear();
+      searchResult = null;
+      discoveryResult = null;
+      searchError = null;
+    });
   }
 
   Future<void> _performSearch({
@@ -469,11 +480,13 @@ class _HomePageState extends State<HomePage> {
                     selectedCategory = selected ? category : null;
                     selectedFacets.clear();
                     selectedBrand = null;
+                    brandController.clear();
+                    searchResult = null;
+                    discoveryResult = null;
                     searchController.text = selected
                         ? ProductFacets.categories[category]!
                         : '';
                   });
-                  if (selected) _performSearch();
                 },
               )).toList(),
         ),
@@ -481,14 +494,18 @@ class _HomePageState extends State<HomePage> {
         TextField(
           controller: searchController,
           textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _performSearch(),
+          onSubmitted: (_) => _updateCategoryFromQuery(query),
           decoration: InputDecoration(
             hintText: '¿Qué buscás? Ej. leche, aceite, crema, yogur…',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
               onPressed: () {
                 searchController.clear();
+                brandController.clear();
                 setState(() {
+                  selectedCategory = null;
+                  selectedBrand = null;
+                  selectedFacets.clear();
                   searchResult = null;
                   discoveryResult = null;
                   searchError = null;
@@ -500,8 +517,31 @@ class _HomePageState extends State<HomePage> {
             fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: _updateCategoryFromQuery,
         ),
+        if (selectedCategory != null) ...[
+          const SizedBox(height: 16),
+          Text('Filtros para $selectedCategory', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: brandController,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: 'Marca (opcional)', hintText: 'Escribí la marca que buscás', prefixIcon: const Icon(Icons.sell_outlined), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14))),
+            onChanged: (value) => setState(() => selectedBrand = value.trim().isEmpty ? null : value.trim()),
+          ),
+          const SizedBox(height: 8),
+          ..._availableFacets.entries.map((facet) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: DropdownButtonFormField<String>(
+              value: selectedFacets[facet.key],
+              decoration: InputDecoration(labelText: facet.key, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14))),
+              items: [const DropdownMenuItem<String>(value: null, child: Text('Cualquiera')), ...facet.value.map((value) => DropdownMenuItem<String>(value: value, child: Text(value)))],
+              onChanged: (value) => setState(() { if (value == null) { selectedFacets.remove(facet.key); } else { selectedFacets[facet.key] = value; } }),
+            ),
+          )),
+          const SizedBox(height: 8),
+          const Text('Elegí los filtros y recién después consultamos los supermercados.', style: TextStyle(color: Colors.black54, fontSize: 12)),
+        ],
         const SizedBox(height: 8),
         const Text('Búsquedas frecuentes',
             style: TextStyle(color: Colors.black54, fontSize: 12)),
@@ -516,14 +556,14 @@ class _HomePageState extends State<HomePage> {
                         ? null
                         : () {
                             searchController.text = term.toLowerCase();
-                            _performSearch();
+                            _updateCategoryFromQuery(searchController.text);
                           },
                   ))
               .toList(),
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: query.length < 2 || searching ? null : _performSearch,
+          onPressed: query.length < 2 || searching ? null : () => _performSearch(catalogQuery: _queryForSelectedFilters()),
           icon: searching
               ? const SizedBox(
                   width: 18,
