@@ -162,7 +162,7 @@ async function searchVtex(store, query, limit) {
     const allProducts = [];
     let status = 200;
     // Keep web and Android coverage aligned: fetch at most two VTEX pages.
-    for (let offset = 0, page = 0; page < 200; offset += limit, page++) {
+    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
       url.searchParams.set('_from', String(offset));
       url.searchParams.set('_to', String(offset + limit - 1));
       const response = await fetch(url, {
