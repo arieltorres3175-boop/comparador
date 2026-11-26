@@ -181,4 +181,47 @@ void main() {
 
     service.close();
   });
+  test('recorre páginas del catálogo VTEX para no limitarse a los primeros 50', () async {
+    final offsetsByStore = <String, List<String>>{};
+    final client = MockClient((request) async {
+      if (request.url.host == 'www.cotodigital.com.ar') {
+        return http.Response(jsonEncode({'contents': []}), 200);
+      }
+
+      final host = request.url.host;
+      final offset = request.url.queryParameters['_from'] ?? '0';
+      offsetsByStore.putIfAbsent(host, () => []).add(offset);
+      final start = int.parse(offset);
+      final count = start == 0 ? 50 : (start == 50 ? 1 : 0);
+      final products = List.generate(count, (index) {
+        final number = start + index;
+        return {
+          'productName': 'Leche producto $number',
+          'brand': 'Marca',
+          'link': '/leche-$number/p',
+          'items': [
+            {
+              'ean': '7790000${number.toString().padLeft(6, '0')}',
+              'name': '1 litro',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 1000 + number, 'ListPrice': 1000 + number}}
+              ],
+            }
+          ],
+        };
+      });
+      return http.Response(jsonEncode(products), 206);
+    });
+
+    final service = CatalogService(client: client);
+    final result = await service.search('leche');
+
+    expect(result.products, hasLength(51));
+    expect(offsetsByStore, hasLength(6));
+    expect(offsetsByStore.values.every((offsets) => offsets.join(',') == '0,50'), isTrue);
+
+    service.close();
+  });
+
 }
