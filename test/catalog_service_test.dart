@@ -181,6 +181,46 @@ void main() {
 
     service.close();
   });
+  test('interpreta correctamente miles y decimales en precios localizados', () async {
+    String rawPrice = '5,000';
+    final client = MockClient((request) async {
+      if (request.url.host == 'www.cotodigital.com.ar') {
+        return http.Response(jsonEncode({'contents': []}), 200);
+      }
+      return http.Response(jsonEncode([
+        {
+          'productName': 'Leche entera marca A 1 litro',
+          'brand': 'Marca A',
+          'items': [
+            {
+              'ean': '7790000000001',
+              'name': '1 litro',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': rawPrice, 'ListPrice': rawPrice}}
+              ],
+            }
+          ],
+        }
+      ]), 200);
+    });
+    final service = CatalogService(client: client);
+
+    for (final entry in {
+      '5,000': 5000.0,
+      '5,50': 5.5,
+      '1.234,50': 1234.5,
+      '1,234.50': 1234.5,
+    }.entries) {
+      rawPrice = entry.key;
+      final result = await service.search('leche');
+      expect(result.products.single.offers.first.price, entry.value,
+          reason: 'Formato de precio: ${entry.key}');
+    }
+
+    service.close();
+  });
+
   test('recorre páginas del catálogo VTEX para no limitarse a los primeros 50', () async {
     final offsetsByStore = <String, List<String>>{};
     final client = MockClient((request) async {
