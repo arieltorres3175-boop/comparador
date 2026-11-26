@@ -1,38 +1,72 @@
 class ProductFacets {
+  /// Categories shown by the search UI. The value is the catalog query term.
   static const categories = <String, String>{
-    'Leche': 'leche', 'Café': 'cafe', 'Manteca': 'manteca',
-    'Aceite': 'aceite', 'Yogur': 'yogur', 'Queso': 'queso',
-    'Crema': 'crema', 'Azúcar': 'azucar', 'Arroz': 'arroz',
+    'Leche': 'leche',
+    'Café': 'cafe',
+    'Gaseosas': 'gaseosa',
+    'Atún': 'atun',
+    'Paté': 'pate',
+    'Yogur': 'yogur',
+    'Crema': 'crema',
+    'Manteca': 'manteca',
+    'Aceite': 'aceite',
+    'Queso': 'queso',
+    'Azúcar': 'azucar',
+    'Arroz': 'arroz',
     'Fideos': 'fideos',
   };
 
   static String normalize(String value) => value
-      .toLowerCase().replaceAll('á', 'a').replaceAll('é', 'e')
-      .replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u')
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u')
       .replaceAll('ü', 'u');
+
+  static bool _hasAny(Set<String> words, Iterable<String> values) =>
+      values.any(words.contains);
 
   static bool isCategoryProduct(String category, String value) {
     final text = normalize(value);
-    final words = text.split(RegExp(r'[^a-z0-9]+')).where((word) => word.isNotEmpty).toSet();
-    if (category == 'Leche') {
-      if (!words.contains('leche')) return false;
-      if (text.trimLeft().startsWith('leche ')) return true;
-      const milkDescriptors = {
-        'entera', 'descremada', 'semidescremada', 'liviana', 'protein',
-        'fortificada', 'chocolatada', 'sachet', 'lactosa', 'multidefensa',
-        'larga', 'uat', 'fresca', 'polvo',
-      };
-      return words.any(milkDescriptors.contains) ||
-          RegExp(r'\d+(?:[.,]\d+)?\s?(?:l|lt|litro|litros)\b').hasMatch(text);
+    final words = text
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((word) => word.isNotEmpty)
+        .toSet();
+    switch (category) {
+      case 'Leche':
+        if (!words.contains('leche')) return false;
+        if (text.trimLeft().startsWith('leche ')) return true;
+        const descriptors = {
+          'entera', 'descremada', 'semidescremada', 'liviana', 'protein',
+          'fortificada', 'chocolatada', 'sachet', 'lactosa', 'multidefensa',
+          'larga', 'uat', 'fresca', 'polvo',
+        };
+        return _hasAny(words, descriptors) ||
+            RegExp(r'\d+(?:[.,]\d+)?\s?(?:l|lt|litro|litros)\b')
+                .hasMatch(text);
+      case 'Café':
+        return words.contains('cafe') && !words.contains('cafetera');
+      case 'Gaseosas':
+        return _hasAny(words, {'gaseosa', 'gaseosas', 'cola', 'soda'}) ||
+            (words.contains('bebida') &&
+                _hasAny(words, {'carbonatada', 'gasificada'}));
+      case 'Atún':
+        return _hasAny(words, {'atun', 'atunes'});
+      case 'Paté':
+        return _hasAny(words, {'pate', 'pates'});
+      case 'Yogur':
+        return _hasAny(words, {'yogur', 'yoghurt', 'yogurt'});
+      case 'Crema':
+        return words.contains('crema') &&
+            !_hasAny(words, {'corporal', 'facial', 'manos', 'afeitar'});
+      case 'Manteca':
+        return words.contains('manteca') &&
+            !_hasAny(words, {'cacao', 'corporal'});
+      default:
+        return words.contains(normalize(category));
     }
-    if (category == 'Café') {
-      return words.contains('cafe') && !words.contains('cafetera');
-    }
-    if (category == 'Manteca') {
-      return words.contains('manteca') &&
-          !words.contains('cacao') && !words.contains('corporal');
-    }
-    return words.contains(normalize(category));
   }
 
   static Map<String, String> extract(String category, String value) {
@@ -53,20 +87,20 @@ class ProductFacets {
         r'\bsemidescremada\b': 'Semidescremada',
         r'\bdescremada\b': 'Descremada',
         r'\bentera\b': 'Entera',
-        r'\ben polvo\b|\bpolvo\b': 'En polvo',
-        r'\bchocolatada\b|\bsaborizada\b': 'Saborizada',
+        r'\b(en polvo|polvo)\b': 'En polvo',
+        r'\b(chocolatada|saborizada)\b': 'Saborizada',
       });
       match('Presentación', {
         r'\bsachet\b': 'Sachet',
-        r'\blarga vida\b|\btetra\b|\btetrabrik\b': 'Larga vida / Tetra',
+        r'\b(larga vida|tetra|tetrabrik)\b': 'Larga vida / Tetra',
         r'\bbotella\b': 'Botella',
         r'\bcaja\b': 'Caja',
       });
     } else if (category == 'Café') {
       match('Preparación', {
-        r'\binstantaneo\b|\bsoluble\b': 'Instantáneo',
+        r'\b(instantaneo|soluble)\b': 'Instantáneo',
         r'\bmolido\b': 'Molido',
-        r'\bgrano\b|\bgranos\b': 'En grano',
+        r'\bgrano(s)?\b': 'En grano',
       });
       match('Proceso', {
         r'\btorrado\b': 'Torrado',
@@ -79,6 +113,58 @@ class ProductFacets {
         r'\bcapsulas?\b': 'Cápsulas',
         r'\blata\b': 'Lata',
         r'\bpaquete\b': 'Paquete',
+      });
+    } else if (category == 'Gaseosas') {
+      match('Tipo', {
+        r'\bsin azucar\b|\bzero\b|\bno sugar\b': 'Sin azúcar / Zero',
+        r'\blight\b|\bliviana\b': 'Light',
+        r'\bregular\b|\boriginal\b|\bcomun\b': 'Regular',
+      });
+      match('Envase', {
+        r'\bretornable\b': 'Retornable',
+        r'\bdescartable\b': 'Descartable',
+        r'\blata\b': 'Lata',
+        r'\bbotella\b': 'Botella',
+      });
+    } else if (category == 'Atún') {
+      match('Preparación', {
+        r'\bal natural\b': 'Al natural',
+        r'\ben aceite\b': 'En aceite',
+        r'\ben agua\b': 'En agua',
+      });
+      match('Presentación', {
+        r'\blomitos?\b': 'Lomitos',
+        r'\bdesmenuzado\b': 'Desmenuzado',
+        r'\btrozos?\b': 'Trozos',
+      });
+    } else if (category == 'Paté') {
+      match('Variedad', {
+        r'\b(jamon|jamonada)\b': 'Jamón',
+        r'\bcerdo\b': 'Cerdo',
+        r'\bpate de higado\b': 'Hígado',
+        r'\bave\b|\bpollo\b': 'Ave',
+      });
+    } else if (category == 'Yogur') {
+      match('Tipo', {
+        r'\b(griego|estilo griego)\b': 'Griego',
+        r'\b bebible\b|\bbebible\b': 'Bebible',
+        r'\bfirme\b': 'Firme',
+        r'\bdescremado\b': 'Descremado',
+        r'\bentero\b': 'Entero',
+        r'\bsin lactosa\b': 'Sin lactosa',
+      });
+      match('Sabor', {
+        r'\bfrutilla\b': 'Frutilla',
+        r'\bvainilla\b': 'Vainilla',
+        r'\bdurazno\b': 'Durazno',
+        r'\bnatural\b': 'Natural',
+      });
+    } else if (category == 'Crema') {
+      match('Tipo', {
+        r'\b(para cocinar|cocina)\b': 'Para cocinar',
+        r'\b(para batir|chantilly)\b': 'Para batir',
+        r'\bliviana\b|\blight\b': 'Liviana',
+        r'\bdoble\b': 'Doble',
       });
     } else if (category == 'Manteca') {
       match('Variante', {
@@ -93,8 +179,10 @@ class ProductFacets {
       });
     }
 
-    final size = RegExp(r'(\d+(?:[.,]\d+)?)\s?(kg|grs?|g|gramos?|ml|cc|lts?|l|litros?)\b')
-        .firstMatch(text);
+    // Extract only quantities actually present in the product title/variant.
+    final size = RegExp(
+      r'(\d+(?:[.,]\d+)?)\s?(kg|grs?|g|gramos?|ml|cc|lts?|l|litros?)\b',
+    ).firstMatch(text);
     if (size != null) {
       final rawUnit = size.group(2)!;
       final unit = rawUnit.startsWith('gr') || rawUnit.startsWith('gram')
@@ -104,16 +192,18 @@ class ProductFacets {
               : rawUnit.startsWith('l')
                   ? 'l'
                   : rawUnit;
-      result['Contenido'] = size.group(1)! + ' ' + unit;
+      result['Contenido'] = '${size.group(1)} $unit';
     }
     return result;
   }
 
   static Map<String, List<String>> available(
-    String category, Iterable<String> productNames,
+    String category,
+    Iterable<String> productNames,
   ) {
     final values = <String, Set<String>>{};
     for (final name in productNames) {
+      if (!isCategoryProduct(category, name)) continue;
       for (final entry in extract(category, name).entries) {
         values.putIfAbsent(entry.key, () => <String>{}).add(entry.value);
       }
@@ -124,8 +214,11 @@ class ProductFacets {
     });
   }
 
-  static bool matches(String category, String productName,
-      Map<String, String> selected) {
+  static bool matches(
+    String category,
+    String productName,
+    Map<String, String> selected,
+  ) {
     if (selected.isEmpty) return true;
     final attributes = extract(category, productName);
     return selected.entries.every(
