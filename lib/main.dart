@@ -490,6 +490,7 @@ class _HomePageState extends State<HomePage> {
                 searchController.clear();
                 setState(() {
                   searchResult = null;
+                  discoveryResult = null;
                   searchError = null;
                 });
               },
