@@ -133,7 +133,11 @@ test('parses comma thousands separators as thousands, not decimal fractions', as
   const body = await response.json();
   const product = body.products.find((item) => item.ean === expectedEan);
   assert.ok(product);
+  // Carrefour deliberately has a different EAN in this fixture, so only
+  // five VTEX offers belong to this exact-EAN group; Coto is the sixth.
   const vtexOffers = product.offers.filter((offer) => offer.store !== 'Coto');
-  assert.equal(vtexOffers.length, 6);
+  assert.equal(vtexOffers.length, 5);
+  assert.equal(product.offers.length, 6);
   assert.ok(vtexOffers.every((offer) => offer.price === 5000));
+  assert.equal(product.offers.find((offer) => offer.store === 'Coto')?.price, 2500);
 });
