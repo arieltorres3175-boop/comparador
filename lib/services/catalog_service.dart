@@ -240,49 +240,61 @@ class CatalogService {
     String query,
     int limit,
   ) async {
-    final uri = Uri.https(
-      store.domain,
-      '/api/catalog_system/pub/products/search',
-      {
-        'ft': query,
-        '_from': '0',
-        '_to': '${limit - 1}',
-      },
-    );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {
-          'accept': 'application/json',
-          'user-agent': 'ComparadorInteligente/0.1',
-        },
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        return _StoreSearch(
-          StoreStatus(
-            store: store.name,
-            ok: false,
-            status: response.statusCode,
-            error: 'El catálogo no respondió correctamente.',
-          ),
-          const [],
+      final decodedProducts = <Map<String, dynamic>>[];
+      var lastStatus = 200;
+
+      // VTEX pagina los resultados en bloques. Seguimos consultando hasta
+      // recibir una página incompleta o vacía, con un límite de seguridad.
+      for (var offset = 0; offset < limit * 100; offset += limit) {
+        final uri = Uri.https(
+          store.domain,
+          '/api/catalog_system/pub/products/search',
+          {
+            'ft': query,
+            '_from': '$offset',
+            '_to': '${offset + limit - 1}',
+          },
         );
-      }
-      final decoded = jsonDecode(response.body);
-      if (decoded is! List) {
-        return _StoreSearch(
-          StoreStatus(
-            store: store.name,
-            ok: false,
-            status: response.statusCode,
-            error: 'El catálogo devolvió un formato inesperado.',
-          ),
-          const [],
+        final response = await _client.get(
+          uri,
+          headers: {
+            'accept': 'application/json',
+            'user-agent': 'ComparadorInteligente/0.1',
+          },
         );
+        lastStatus = response.statusCode;
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          return _StoreSearch(
+            StoreStatus(
+              store: store.name,
+              ok: false,
+              status: response.statusCode,
+              error: 'El catálogo no respondió correctamente.',
+            ),
+            const [],
+          );
+        }
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) {
+          return _StoreSearch(
+            StoreStatus(
+              store: store.name,
+              ok: false,
+              status: response.statusCode,
+              error: 'El catálogo devolvió un formato inesperado.',
+            ),
+            const [],
+          );
+        }
+        final pageProducts = decoded.whereType<Map<String, dynamic>>().toList();
+        if (pageProducts.isEmpty) break;
+        decodedProducts.addAll(pageProducts);
+        if (pageProducts.length < limit) break;
       }
 
       final offers = <StoreOffer>[];
-      for (final rawProduct in decoded.whereType<Map<String, dynamic>>()) {
+      for (final rawProduct in decodedProducts) {
         final items = rawProduct['items'] as List<dynamic>? ?? [];
         for (final rawItem in items.whereType<Map<String, dynamic>>()) {
           final sellers = rawItem['sellers'] as List<dynamic>? ?? [];
