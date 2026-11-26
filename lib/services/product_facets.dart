@@ -49,7 +49,11 @@ class ProductFacets {
       case 'Café':
         return words.contains('cafe') && !words.contains('cafetera');
       case 'Gaseosas':
-        return _hasAny(words, {'gaseosa', 'gaseosas', 'cola', 'soda', 'pepsi', 'sprite', 'fanta', 'seven', '7up', 'schweppes', 'manaos', 'crush', 'mirinda', 'cunnington'}) ||
+        return _hasAny(words, {
+              'gaseosa', 'gaseosas', 'cola', 'soda', 'pepsi', 'sprite',
+              'fanta', 'seven', '7up', 'schweppes', 'manaos', 'crush',
+              'mirinda', 'cunnington',
+            }) ||
             (words.contains('bebida') &&
                 _hasAny(words, {'carbonatada', 'gasificada'}));
       case 'Atún':
