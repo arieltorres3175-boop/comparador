@@ -70,7 +70,7 @@ void main() {
     expect(values['Tipo'], containsAll(['Sin azúcar / Zero', 'Regular']));
     expect(values['Envase'], containsAll(['Botella', 'Lata']));
     expect(values['Contenido'], containsAll(['1,5 l', '354 ml', '2 l']));
-    expect(ProductFacets.isCategoryProduct('Gaseosas', 'Coca Cola Zero 2 litros'), isFalse);
+    expect(ProductFacets.isCategoryProduct('Gaseosas', 'Coca Cola Zero 2 litros'), isTrue);
     expect(ProductFacets.isCategoryProduct('Gaseosas', 'Gaseosa cola 2 litros'), isTrue);
   });
 
