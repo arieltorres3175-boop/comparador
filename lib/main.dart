@@ -201,7 +201,7 @@ class _HomePageState extends State<HomePage> {
     }
     for (final entry in selectedFacets.entries) {
       if (entry.key == 'Contenido' || entry.value.contains('/')) continue;
-      final words = entry.value.trim().split(RegExp(r'\\s+'));
+      final words = entry.value.trim().split(RegExp(r'\s+'));
       final token = words.isEmpty ? '' : words.last;
       if (token.length >= 3) return token;
     }
