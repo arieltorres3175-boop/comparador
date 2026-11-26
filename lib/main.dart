@@ -171,11 +171,11 @@ class _HomePageState extends State<HomePage> {
     };
     for (final product in result.products) {
       if (product.brand != null && product.brand!.trim().isNotEmpty) {
-        found.add(product.brand!.trim());
+        found.add(ProductFacets.canonicalBrand(selectedCategory!, product.brand!));
       }
       for (final offer in product.offers) {
         if (offer.brand != null && offer.brand!.trim().isNotEmpty) {
-          found.add(offer.brand!.trim());
+          found.add(ProductFacets.canonicalBrand(selectedCategory!, offer.brand!));
         }
       }
     }
