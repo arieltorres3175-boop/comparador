@@ -594,25 +594,6 @@ class _HomePageState extends State<HomePage> {
           const Text('Los filtros se construyen con los productos encontrados. Podés combinar solo los que necesites.',
               style: TextStyle(color: Colors.black54, fontSize: 12)),
         ],
-        const SizedBox(height: 8),
-        const Text('Búsquedas frecuentes',
-            style: TextStyle(color: Colors.black54, fontSize: 12)),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 7,
-          runSpacing: 4,
-          children: ['Leche', 'Aceite', 'Crema', 'Yogur', 'Azúcar']
-              .map((term) => ActionChip(
-                    label: Text(term),
-                    onPressed: searching
-                        ? null
-                        : () {
-                            searchController.text = term.toLowerCase();
-                            _updateCategoryFromQuery(searchController.text);
-                          },
-                  ))
-              .toList(),
-        ),
         const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: query.length < 2 || searching ? null : () => _performSearch(keepDiscovery: true),
