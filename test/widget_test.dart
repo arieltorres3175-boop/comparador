@@ -20,6 +20,8 @@ void main() {
     expect(find.text('comparador inteligente'), findsOneWidget);
     expect(find.text('Una búsqueda, siete supermercados'), findsOneWidget);
     expect(find.text('Elegí una categoría para empezar'), findsOneWidget);
+    expect(find.text('Búsquedas frecuentes'), findsNothing);
+    expect(find.text('Leche'), findsNothing);
     await tester.enterText(find.byType(TextField).first, 'leche');
     await tester.pumpAndSettle();
     expect(find.text('Filtros para Leche'), findsOneWidget);
