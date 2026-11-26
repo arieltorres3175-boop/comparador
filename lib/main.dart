@@ -727,6 +727,10 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(10),
                     child: Image.network(
                       imageOffer.image!,
+                      headers: const {
+                        'User-Agent':
+                            'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+                      },
                       width: 68,
                       height: 68,
                       fit: BoxFit.contain,
