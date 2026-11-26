@@ -602,7 +602,10 @@ bool _matchesSearchQuery(String productName, String query) {
       .toList();
   if (normalizedName.isEmpty || terms.isEmpty) return false;
   final productTerms = normalizedName.split(' ');
-  if (!terms.every(productTerms.contains)) return false;
+  final isSoftDrinkCategory = terms.length == 1 &&
+      terms.first == 'gaseosa' &&
+      ProductFacets.isCategoryProduct('Gaseosas', productName);
+  if (!terms.every(productTerms.contains) && !isSoftDrinkCategory) return false;
   if (terms.length == 1 &&
       ['leche', 'cafe', 'manteca'].contains(terms.first)) {
     final category = terms.first == 'cafe'
