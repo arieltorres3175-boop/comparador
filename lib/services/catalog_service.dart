@@ -419,7 +419,7 @@ class CatalogService {
 
       // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos todas las
       // páginas disponibles hasta que el buscador devuelve menos resultados.
-      for (var offset = 0; offset < limit * 2; offset += limit) {
+      for (var offset = 0, page = 0; page < 200; offset += limit, page++) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
           '/sitios/cdigi/categoria',
