@@ -305,6 +305,36 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _addQuickItem() async {
+    final name = query;
+    if (name.length < 2) return;
+    final normalized = name.toLowerCase().trim();
+    final index = basket.indexWhere(
+      (item) => item.name.toLowerCase().trim() == normalized,
+    );
+    setState(() {
+      if (index >= 0) {
+        basket[index].quantity++;
+      } else {
+        basket.add(ShoppingItem(name));
+      }
+    });
+    await _saveBasket();
+    if (!mounted) return;
+    searchController.clear();
+    setState(() {
+      selectedCategory = null;
+      selectedBrand = null;
+      selectedFacets.clear();
+      searchResult = null;
+      discoveryResult = null;
+      searchError = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Producto agregado a tu lista. Podés seguir cargando sin esperar los precios.')),
+    );
+  }
+
   Future<void> _addProduct(CatalogProduct product) async {
     final index = basket.indexWhere((item) {
       if (product.ean != null && product.ean!.isNotEmpty) {
@@ -595,6 +625,12 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(color: Colors.black54, fontSize: 12)),
         ],
         const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: query.length < 2 || searching ? null : _addQuickItem,
+          icon: const Icon(Icons.playlist_add),
+          label: const Text('Agregar a mi lista sin buscar precios'),
+        ),
+        const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: query.length < 2 || searching ? null : () => _performSearch(keepDiscovery: true),
           icon: searching
@@ -938,7 +974,7 @@ class _HomePageState extends State<HomePage> {
         if (basket.isEmpty)
           const _Notice(
             title: 'Tu lista está vacía',
-            body: 'Buscá un producto, elegí la presentación correcta y tocá “Agregar a mi lista”.',
+            body: 'Escribí el producto con la marca y presentación que querés, y agregalo sin esperar la búsqueda de precios.',
             icon: Icons.add_shopping_cart,
           )
         else ...[
@@ -973,6 +1009,11 @@ class _HomePageState extends State<HomePage> {
                       Text('EAN: ${item.ean}',
                           style: const TextStyle(
                               color: Colors.black54, fontSize: 11)),
+                    if (item.offers.isEmpty)
+                      const Text(
+                        'Pendiente de comparar · todavía no consultamos precios',
+                        style: TextStyle(color: Colors.deepOrange, fontSize: 12),
+                      ),
                     if (bestOffer != null)
                       Text(
                         'Mejor precio consultado: ${money(bestOffer.price)} en ${bestOffer.store}',
