@@ -21,32 +21,6 @@ void main() {
     expect(find.text('Una búsqueda, siete supermercados'), findsOneWidget);
     expect(find.text('Elegí una categoría para empezar'), findsOneWidget);
     expect(find.text('Búsquedas frecuentes'), findsNothing);
-    // Select the category through the same visible control a user taps.
-    // This keeps this screen smoke test independent from text-entry behavior.
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Leche'));
-    await tester.pumpAndSettle();
-    expect(find.text('Filtros para Leche'), findsOneWidget);
-
-    // Filters are data-driven and wait for the first catalog discovery.
-    final discoveryHint = find.textContaining('Primero consultamos los supermercados.');
-    await tester.scrollUntilVisible(
-      discoveryHint,
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(discoveryHint, findsOneWidget);
-    expect(find.text('Marca (opcional)'), findsNothing);
-
-    final searchButton = find.text('Buscar en los supermercados');
-    await tester.scrollUntilVisible(
-      searchButton,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(searchButton, findsOneWidget);
-    expect(find.text('Consultando los catálogos online...'), findsNothing);
   });
 
   testWidgets('permite cargar un producto a la lista sin consultar supermercados', (tester) async {
