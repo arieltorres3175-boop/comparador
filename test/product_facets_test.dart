@@ -17,14 +17,15 @@ void main() {
   test('café exposes preparation and process, never milk presentation', () {
     final values = ProductFacets.available('Café', [
       'Café molido tostado 250 g',
-      'Café instantáneo 100 g',
+      'Café instantáneo 100 g doypack',
       'Café en grano torrado 500 g',
+      'Café molido en saquitos 18 g',
     ]);
 
     expect(values['Preparación'], containsAll(['Molido', 'Instantáneo', 'En grano']));
     expect(values['Proceso'], containsAll(['Tostado', 'Torrado']));
-    expect(values['Contenido'], contains('500 g'));
-    expect(values.containsKey('Presentación'), isFalse);
+    expect(values['Contenido'], containsAll(['500 g', '100 g', '18 g']));
+    expect(values['Presentación'], containsAll(['Doypack', 'Saquitos']));
   });
 
   test('manteca only exposes its own variant and package content', () {
