@@ -190,31 +190,30 @@ class _HomePageState extends State<HomePage> {
 
   List<CatalogProduct> get _visibleProducts {
     final products = (searchResult?.products ?? <CatalogProduct>[])
-        .where((product) =>
-            (selectedBrand == null ||
-                ProductFacets.matchesBrand(
-                  selectedCategory ?? '',
-                  selectedBrand!,
-                  [
-                    product.brand ?? '',
-                    product.name,
-                    ...product.offers.expand((offer) => [
-                      offer.brand ?? '',
-                      offer.name,
-                      offer.variant ?? '',
-                    ]),
-                  ].join(' '),
-                )) &&
-            (selectedCategory == null ||
-                (ProductFacets.isCategoryProduct(
-                      selectedCategory!,
-                      '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
-                    ) &&
-                    ProductFacets.matches(
-                      selectedCategory!,
-                      '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
-                      selectedFacets,
-                    ))))
+        .where((product) {
+          final productText = [
+            product.name,
+            product.brand ?? '',
+            ...product.offers.expand((offer) => [
+              offer.name,
+              offer.brand ?? '',
+              offer.variant ?? '',
+            ]),
+          ].join(' ');
+          return (selectedBrand == null ||
+                  ProductFacets.matchesBrand(
+                    selectedCategory ?? '',
+                    selectedBrand!,
+                    productText,
+                  )) &&
+              (selectedCategory == null ||
+                  (ProductFacets.isCategoryProduct(selectedCategory!, productText) &&
+                      ProductFacets.matches(
+                        selectedCategory!,
+                        productText,
+                        selectedFacets,
+                      )));
+        })
         .toList();
     if (sortMode == 'brand') {
       products.sort((a, b) => (a.brand ?? a.name)
