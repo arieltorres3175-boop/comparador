@@ -141,3 +141,36 @@ test('parses comma thousands separators as thousands, not decimal fractions', as
   assert.ok(vtexOffers.every((offer) => offer.price === 5000));
   assert.equal(product.offers.find((offer) => offer.store === 'Coto')?.price, 2500);
 });
+
+
+test('limits the initial catalog discovery to two VTEX pages per store', async () => {
+  const requests = new Map();
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
+    if (url.hostname === 'www.cotodigital.com.ar') {
+      return new Response(JSON.stringify({ contents: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    requests.set(url.hostname, (requests.get(url.hostname) ?? 0) + 1);
+    return new Response(JSON.stringify(Array.from({ length: 50 }, (_, index) => ({
+      ...vtexResponse(url.hostname)[0],
+      productId: `page-product-${index}`,
+      productName: `Arroz producto ${index}`,
+    }))), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  const response = await worker.fetch(
+    new Request('https://comparador-api.example.workers.dev/search?q=arroz&limit=50'),
+    {},
+    { waitUntil: () => {} },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(requests.size, 6);
+  assert.ok([...requests.values()].every((count) => count === 2));
+});
