@@ -95,7 +95,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final searchController = TextEditingController();
-  final brandController = TextEditingController();
   final basket = <ShoppingItem>[];
   final catalogService = CatalogService();
   int page = 0;
@@ -119,7 +118,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     searchController.dispose();
-    brandController.dispose();
     catalogService.close();
     super.dispose();
   }
@@ -151,15 +149,47 @@ class _HomePageState extends State<HomePage> {
 
   String get query => searchController.text.trim();
 
+  List<String> get _discoveredProductText {
+    final result = discoveryResult;
+    if (result == null) return const [];
+    return result.products.expand((product) => [
+      product.name,
+      if (product.brand != null) product.brand!,
+      ...product.offers.expand((offer) => [
+        offer.name,
+        if (offer.brand != null) offer.brand!,
+        if (offer.variant != null) offer.variant!,
+      ]),
+    ]).toList();
+  }
+
+  List<String> get _availableBrands {
+    if (selectedCategory == null || discoveryResult == null) return const [];
+    return ProductFacets.availableBrands(selectedCategory!, _discoveredProductText);
+  }
+
   Map<String, List<String>> get _availableFacets {
-    if (selectedCategory == null) return const {};
-    return ProductFacets.initialOptions(selectedCategory!);
+    if (selectedCategory == null || discoveryResult == null) return const {};
+    return ProductFacets.available(selectedCategory!, _discoveredProductText);
   }
 
   List<CatalogProduct> get _visibleProducts {
     final products = (searchResult?.products ?? <CatalogProduct>[])
         .where((product) =>
-            (selectedBrand == null || ProductFacets.normalize(product.brand ?? '') == ProductFacets.normalize(selectedBrand!)) &&
+            (selectedBrand == null ||
+                ProductFacets.matchesBrand(
+                  selectedCategory ?? '',
+                  selectedBrand!,
+                  [
+                    product.brand ?? '',
+                    product.name,
+                    ...product.offers.expand((offer) => [
+                      offer.brand ?? '',
+                      offer.name,
+                      offer.variant ?? '',
+                    ]),
+                  ].join(' '),
+                )) &&
             (selectedCategory == null ||
                 (ProductFacets.isCategoryProduct(
                       selectedCategory!,
@@ -182,18 +212,6 @@ class _HomePageState extends State<HomePage> {
     return products;
   }
 
-  String _queryForSelectedFilters() {
-    final parts = <String>[query];
-    final brand = selectedBrand?.trim() ?? '';
-    if (brand.isNotEmpty) parts.add(brand);
-    for (final entry in selectedFacets.entries) {
-      if (entry.key == 'Contenido') continue;
-      final value = entry.value.trim();
-      if (value.isNotEmpty && !value.contains('/')) parts.add(value);
-    }
-    return parts.join(' ');
-  }
-
   void _updateCategoryFromQuery(String value) {
     final category = ProductFacets.categoryForQuery(value);
     if (category == selectedCategory) return;
@@ -201,7 +219,6 @@ class _HomePageState extends State<HomePage> {
       selectedCategory = category;
       selectedFacets.clear();
       selectedBrand = null;
-      brandController.clear();
       searchResult = null;
       discoveryResult = null;
       searchError = null;
@@ -209,7 +226,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _performSearch({
-    String? catalogQuery,
     bool keepDiscovery = false,
   }) async {
     if (query.length < 2 || searching) return;
@@ -228,14 +244,11 @@ class _HomePageState extends State<HomePage> {
       }
     });
     try {
-      final result = await catalogService.search(
-        query,
-        catalogQuery: catalogQuery,
-      );
+      final result = await catalogService.search(query);
       if (!mounted) return;
       setState(() {
         searchResult = result;
-        if (!keepDiscovery) discoveryResult = result;
+        discoveryResult = result;
       });
     } catch (error) {
       if (!mounted) return;
@@ -470,8 +483,7 @@ class _HomePageState extends State<HomePage> {
                     selectedCategory = selected ? category : null;
                     selectedFacets.clear();
                     selectedBrand = null;
-                    brandController.clear();
-                    searchResult = null;
+                                  searchResult = null;
                     discoveryResult = null;
                     searchController.text = selected
                         ? ProductFacets.categories[category]!
@@ -491,8 +503,7 @@ class _HomePageState extends State<HomePage> {
             suffixIcon: IconButton(
               onPressed: () {
                 searchController.clear();
-                brandController.clear();
-                setState(() {
+                          setState(() {
                   selectedCategory = null;
                   selectedBrand = null;
                   selectedFacets.clear();
@@ -513,19 +524,61 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 16),
           Text('Filtros para $selectedCategory', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
           const SizedBox(height: 8),
-          TextField(controller: brandController, textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(labelText: 'Marca (opcional)', hintText: 'Escribí la marca que buscás', prefixIcon: const Icon(Icons.sell_outlined), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14))),
-            onChanged: (value) => setState(() => selectedBrand = value.trim().isEmpty ? null : value.trim()),
-          ),
+          if (discoveryResult == null) ...[
+            const Text(
+              'Primero consultamos los supermercados. Después te mostramos únicamente las marcas y características que encontramos.',
+              style: TextStyle(color: Colors.black54, fontSize: 12),
+            ),
+          ] else ...[
+            if (_availableBrands.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: DropdownButtonFormField<String>(
+                  value: selectedBrand,
+                  decoration: InputDecoration(
+                    labelText: 'Marca',
+                    prefixIcon: const Icon(Icons.sell_outlined),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(value: null, child: Text('Todas las marcas')),
+                    ..._availableBrands.map((brand) => DropdownMenuItem<String>(value: brand, child: Text(brand))),
+                  ],
+                  onChanged: (value) => setState(() => selectedBrand = value),
+                ),
+              ),
+            ..._availableFacets.entries.map((facet) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: DropdownButtonFormField<String>(
+                value: selectedFacets[facet.key],
+                decoration: InputDecoration(
+                  labelText: facet.key,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                items: [
+                  const DropdownMenuItem<String>(value: null, child: Text('Cualquiera')),
+                  ...facet.value.map((value) => DropdownMenuItem<String>(value: value, child: Text(value))),
+                ],
+                onChanged: (value) => setState(() {
+                  if (value == null) {
+                    selectedFacets.remove(facet.key);
+                  } else {
+                    selectedFacets[facet.key] = value;
+                  }
+                }),
+              ),
+            )),
+            if (_availableBrands.isEmpty && _availableFacets.isEmpty)
+              const Text('Todavía no encontramos características para filtrar en esta búsqueda.',
+                  style: TextStyle(color: Colors.black54, fontSize: 12)),
+          ],
           const SizedBox(height: 8),
-          ..._availableFacets.entries.map((facet) => Padding(padding: const EdgeInsets.only(bottom: 8), child: DropdownButtonFormField<String>(
-            value: selectedFacets[facet.key],
-            decoration: InputDecoration(labelText: facet.key, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14))),
-            items: [const DropdownMenuItem<String>(value: null, child: Text('Cualquiera')), ...facet.value.map((value) => DropdownMenuItem<String>(value: value, child: Text(value)))],
-            onChanged: (value) => setState(() { if (value == null) { selectedFacets.remove(facet.key); } else { selectedFacets[facet.key] = value; } }),
-          ))),
-          const SizedBox(height: 8),
-          const Text('Elegí los filtros y recién después consultamos los supermercados.', style: TextStyle(color: Colors.black54, fontSize: 12)),
+          const Text('Los filtros se construyen con los productos encontrados. Podés combinar solo los que necesites.',
+              style: TextStyle(color: Colors.black54, fontSize: 12)),
         ],
         const SizedBox(height: 8),
         const Text('Búsquedas frecuentes',
@@ -548,7 +601,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: query.length < 2 || searching ? null : () => _performSearch(catalogQuery: _queryForSelectedFilters(), keepDiscovery: true),
+          onPressed: query.length < 2 || searching ? null : () => _performSearch(keepDiscovery: true),
           icon: searching
               ? const SizedBox(
                   width: 18,
@@ -603,7 +656,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: () => _performSearch(catalogQuery: _queryForSelectedFilters(), keepDiscovery: true),
+            onPressed: () => _performSearch(keepDiscovery: true),
             icon: const Icon(Icons.refresh),
             label: const Text('Reintentar'),
           ),
