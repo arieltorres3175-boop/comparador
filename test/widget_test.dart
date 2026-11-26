@@ -27,7 +27,7 @@ void main() {
     final textFields = find.byType(TextField);
     expect(textFields, findsNWidgets(2));
     expect(
-      tester.widget<TextField>(textFields.at(1)).decoration.labelText,
+      tester.widget<TextField>(textFields.at(1)).decoration?.labelText,
       'Marca (opcional)',
     );
 
