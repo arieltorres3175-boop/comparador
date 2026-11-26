@@ -76,17 +76,19 @@ async function checkStore(store) {
 }
 
 async function checkCoto() {
-  const url = new URL('https://api.cotodigital.com.ar/sitios/cdigi/categoria');
-  url.searchParams.set('_dyncharset', 'utf-8');
+  const url = new URL('https://www.cotodigital.com.ar/sitios/cdigi/categoria');
+  url.searchParams.set('_dyncharset', 'utf8');
+  url.searchParams.set('Dy', '1');
   url.searchParams.set('Nrpp', '10');
   url.searchParams.set('Ntt', query);
+  url.searchParams.set('idSucursal', '200');
+  url.searchParams.set('format', 'json');
   try {
     const response = await fetch(url, {
       headers: {
         accept: 'application/json, text/plain, */*',
-        origin: 'https://www.coto.com.ar',
-        referer: 'https://www.coto.com.ar/',
-        'user-agent': 'Mozilla/5.0 ComparadorInteligenteCatalogCheck/0.2',
+        referer: 'https://www.cotodigital.com.ar/',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
       },
       signal: AbortSignal.timeout(18000),
     });
@@ -101,15 +103,26 @@ async function checkCoto() {
       return { store: 'Coto', ok: false, status: response.status,
         contentType, reason: 'Response was not JSON', preview: body.slice(0, 300) };
     }
-    const keys = Object.keys(data ?? {});
+    const records = data?.contents?.[0]?.Main?.[2]?.contents?.[0]?.records ?? [];
+    const sample = records.slice(0, 5).map((record) => {
+      const attrs = record?.records?.[0]?.attributes ?? {};
+      const value = (key) => attrs[key]?.[0] ?? null;
+      const rawPrice = value('sku.activePrice');
+      const price = rawPrice == null ? null : Number(String(rawPrice).replace(/[$.]/g, '').replace(',', '.'));
+      return {
+        name: value('sku.displayName'),
+        ean: value('product.eanPrincipal'),
+        price,
+        image: value('product.largeImage.url'),
+      };
+    });
     return { store: 'Coto', ok: true, status: response.status, contentType,
-      topLevelKeys: keys, preview: JSON.stringify(data).slice(0, 1200) };
+      resultCount: records.length, sample, topLevelKeys: Object.keys(data ?? {}) };
   } catch (error) {
     return { store: 'Coto', ok: false,
       reason: error instanceof Error ? error.message : String(error) };
   }
 }
-
 async function checkExactEan(store, ean) {
   const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
   url.searchParams.set('ft', ean);
