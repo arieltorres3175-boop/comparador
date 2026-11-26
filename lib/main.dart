@@ -594,7 +594,7 @@ class _HomePageState extends State<HomePage> {
           ] else ...[
             const SizedBox(height: 8),
             Text(
-              '${result.products.length} opciones encontradas',
+              '${_visibleProducts.length} opciones encontradas',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -676,7 +676,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 8),
             if (_visibleProducts.isEmpty)
-              const Text('No hay productos para esa marca.')
+              const Text('No hay productos con esos filtros.')
             else
               ..._visibleProducts.map(_productCard),
           ],
