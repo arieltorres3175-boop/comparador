@@ -79,10 +79,18 @@ class ProductFacets {
       });
     }
 
-    final size = RegExp(r'\b(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt)\b')
+    final size = RegExp(r'(\d+(?:[.,]\d+)?)\s?(kg|grs?|gramos?|ml|cc|lts?|litros?)\b')
         .firstMatch(text);
     if (size != null) {
-      result['Contenido'] = size.group(1)! + ' ' + size.group(2)!;
+      final rawUnit = size.group(2)!;
+      final unit = rawUnit.startsWith('gr') || rawUnit.startsWith('gram')
+          ? 'g'
+          : rawUnit == 'cc'
+              ? 'ml'
+              : rawUnit.startsWith('l')
+                  ? 'l'
+                  : rawUnit;
+      result['Contenido'] = size.group(1)! + ' ' + unit;
     }
     return result;
   }
