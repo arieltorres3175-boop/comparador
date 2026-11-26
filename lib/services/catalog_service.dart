@@ -623,14 +623,12 @@ double? _parseLocalizedPrice(String? value) {
       raw = raw.replaceAll(',', '');
     }
   } else if (raw.contains(',')) {
-    if (RegExp(r'^\d{1,3}(,\d{3})+
-).hasMatch(raw)) {
+    if (RegExp(r'^\d{1,3}(,\d{3})+$').hasMatch(raw)) {
       raw = raw.replaceAll(',', '');
     } else {
       raw = raw.replaceFirst(',', '.');
     }
-  } else if (RegExp(r'^\d{1,3}(\.\d{3})+
-).hasMatch(raw)) {
+  } else if (RegExp(r'^\d{1,3}(\.\d{3})+$').hasMatch(raw)) {
     raw = raw.replaceAll('.', '');
   }
   final parsed = double.tryParse(raw);
