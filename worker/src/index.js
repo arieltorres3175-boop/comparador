@@ -27,9 +27,17 @@ function parsePrice(value) {
   if (value == null) return null;
   let raw = String(value).trim().replace(/[^0-9,.-]/g, '');
   if (raw.includes(',') && raw.includes('.')) {
-    raw = raw.replace(/\./g, '').replace(',', '.');
+    if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else {
+      raw = raw.replace(/,/g, '');
+    }
   } else if (raw.includes(',')) {
-    raw = raw.replace(',', '.');
+    if (/^\d{1,3}(,\d{3})+$/.test(raw)) {
+      raw = raw.replace(/,/g, '');
+    } else {
+      raw = raw.replace(',', '.');
+    }
   } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
     raw = raw.replace(/\./g, '');
   }
