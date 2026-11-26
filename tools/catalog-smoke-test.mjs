@@ -91,9 +91,24 @@ async function checkStore(store) {
       };
     });
 
+    let imageCheck = null;
+    if (sample[0]?.image) {
+      try {
+        const imageResponse = await fetch(sample[0].image, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(10000),
+        });
+        imageCheck = {
+          status: imageResponse.status,
+          contentType: imageResponse.headers.get('content-type'),
+        };
+      } catch (error) {
+        imageCheck = { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
     return { store: store.name, domain: store.domain, status: response.status,
       corsAllowOrigin: response.headers.get('access-control-allow-origin'),
-      ok: true, resultCount: products.length, sample };
+      ok: true, resultCount: products.length, sample, imageCheck };
   } catch (error) {
     return { store: store.name, domain: store.domain, ok: false,
       reason: error instanceof Error ? error.message : String(error) };
