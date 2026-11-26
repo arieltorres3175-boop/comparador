@@ -606,10 +606,20 @@ double? _parseLocalizedPrice(String? value) {
   if (value == null) return null;
   var raw = value.trim().replaceAll(RegExp(r'[^0-9,.-]'), '');
   if (raw.contains(',') && raw.contains('.')) {
-    raw = raw.replaceAll('.', '').replaceFirst(',', '.');
+    if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
+      raw = raw.replaceAll('.', '').replaceFirst(',', '.');
+    } else {
+      raw = raw.replaceAll(',', '');
+    }
   } else if (raw.contains(',')) {
-    raw = raw.replaceFirst(',', '.');
-  } else if (RegExp(r'^\d{1,3}(\.\d{3})+$').hasMatch(raw)) {
+    if (RegExp(r'^\d{1,3}(,\d{3})+
+).hasMatch(raw)) {
+      raw = raw.replaceAll(',', '');
+    } else {
+      raw = raw.replaceFirst(',', '.');
+    }
+  } else if (RegExp(r'^\d{1,3}(\.\d{3})+
+).hasMatch(raw)) {
     raw = raw.replaceAll('.', '');
   }
   final parsed = double.tryParse(raw);
