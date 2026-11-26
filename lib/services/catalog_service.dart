@@ -189,7 +189,7 @@ class CatalogService {
 
     if (kIsWeb) {
       final workerResult = await _searchThroughWorker(query, limit);
-      if (RegExp(r'^\\d{8,14}$').hasMatch(query)) return workerResult;
+      if (RegExp(r'^\d{8,14}$').hasMatch(query)) return workerResult;
       final firstTerm = _normalizeSearchText(query).split(' ').first;
       final filteredProducts = workerResult.products
           .where((product) =>
@@ -208,7 +208,7 @@ class CatalogService {
     );
 
     var cotoQuery = query;
-    if (RegExp(r'^\\d{8,14}$').hasMatch(query)) {
+    if (RegExp(r'^\d{8,14}$').hasMatch(query)) {
       for (final result in vtexResults) {
         final match = result.offers.where((offer) => offer.ean == query);
         if (match.isNotEmpty) {
@@ -220,7 +220,7 @@ class CatalogService {
 
     final cotoResult = await _searchCoto(cotoQuery, limit);
     final results = [...vtexResults, cotoResult];
-    final isBarcode = RegExp(r'^\\d{8,14}$').hasMatch(query);
+    final isBarcode = RegExp(r'^\d{8,14}$').hasMatch(query);
     final firstTerm = _normalizeSearchText(query).split(' ').first;
     final filteredResults = isBarcode
         ? results
