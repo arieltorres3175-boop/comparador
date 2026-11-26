@@ -41,7 +41,14 @@ void main() {
     );
     expect(brandField, findsOneWidget);
 
-    expect(find.text('Buscar en los supermercados'), findsOneWidget);
+    final searchButton = find.text('Buscar en los supermercados');
+    await tester.scrollUntilVisible(
+      searchButton,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(searchButton, findsOneWidget);
     expect(find.text('Consultando los catálogos online...'), findsNothing);
   });
 }
