@@ -12,7 +12,7 @@ on:
       search_query:
         description: 'Producto de prueba (por ejemplo: leche)'
         required: false
-        default: 'leche'
+        default: 'cafe'
   pull_request:
     branches:
       - main
@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Consultar una muestra pequeña de cada catálogo VTEX
         env:
-          SEARCH_QUERY: ${{ github.event.inputs.search_query || 'leche' }}
+          SEARCH_QUERY: ${{ github.event.inputs.search_query || 'cafe' }}
         run: node tools/catalog-smoke-test.mjs
       - name: Guardar informe de diagnóstico
         uses: actions/upload-artifact@v4
