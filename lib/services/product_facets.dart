@@ -40,7 +40,7 @@ class ProductFacets {
         if (text.trimLeft().startsWith('leche ')) return true;
         const descriptors = {
           'entera', 'descremada', 'semidescremada', 'liviana', 'protein',
-          'fortificada', 'chocolatada', 'sachet', 'lactosa', 'multidefensa',
+          'fortificada', 'chocolatada', 'sachet', 'lactosa', 'multidefensa', 'infantil',
           'larga', 'uat', 'fresca', 'polvo',
         };
         return _hasAny(words, descriptors) ||
@@ -93,6 +93,7 @@ class ProductFacets {
         r'\bentera\b': 'Entera',
         r'\b(en polvo|polvo)\b': 'En polvo',
         r'\b(chocolatada|saborizada)\b': 'Saborizada',
+        r'\binfantil\b': 'Infantil',
       });
       match('Presentación', {
         r'\bsachet\b': 'Sachet',
@@ -222,14 +223,6 @@ class ProductFacets {
     final normalized = normalize(query).trim();
     for (final entry in categories.entries) {
       if (normalized == normalize(entry.value) || normalized == normalize(entry.key) || normalized.startsWith('${normalize(entry.value)} ') || normalized.startsWith('${normalize(entry.key)} ')) return entry.key;
-    }
-    return null;
-  }
-
-  static String? categoryForQuery(String query) {
-    final normalized = normalize(query).trim();
-    for (final entry in categories.entries) {
-      if (normalized == normalize(entry.value) || normalized == normalize(entry.key)) return entry.key;
     }
     return null;
   }
