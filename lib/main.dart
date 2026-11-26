@@ -173,11 +173,15 @@ class _HomePageState extends State<HomePage> {
         .where((product) =>
             (selectedBrand == null || product.brand == selectedBrand) &&
             (selectedCategory == null ||
-                ProductFacets.matches(
-                  selectedCategory!,
-                  '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
-                  selectedFacets,
-                )))
+                (ProductFacets.isCategoryProduct(
+                      selectedCategory!,
+                      '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
+                    ) &&
+                    ProductFacets.matches(
+                      selectedCategory!,
+                      '${product.name} ${product.offers.map((offer) => offer.variant ?? '').join(' ')}',
+                      selectedFacets,
+                    ))))
         .toList();
     if (sortMode == 'brand') {
       products.sort((a, b) => (a.brand ?? a.name)
