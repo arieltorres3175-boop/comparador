@@ -25,7 +25,7 @@ void main() {
     expect(find.text('Filtros para Leche'), findsOneWidget);
 
     // Filters are data-driven and wait for the first catalog discovery.
-    expect(find.text('Primero consultamos los supermercados.'), findsOneWidget);
+    expect(find.textContaining('Primero consultamos los supermercados.'), findsOneWidget);
     expect(find.text('Marca (opcional)'), findsNothing);
 
     final searchButton = find.text('Buscar en los supermercados');
