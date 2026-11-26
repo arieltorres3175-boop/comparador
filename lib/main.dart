@@ -609,6 +609,9 @@ class _HomePageState extends State<HomePage> {
 
   Widget _productCard(CatalogProduct product) {
     if (product.offers.isEmpty) return const SizedBox.shrink();
+    final cheapestOffer = product.offers.reduce(
+      (a, b) => a.price <= b.price ? a : b,
+    );
     final imageOffer = product.offers.firstWhere(
       (offer) => offer.image != null && offer.image!.isNotEmpty,
       orElse: () => product.offers.first,
@@ -676,6 +679,23 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF4EF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Menor precio: ${money(cheapestOffer.price)} en ${cheapestOffer.store} · ${product.offers.length} supermercado(s) comparado(s)',
+                style: const TextStyle(
+                  color: Color(0xFF176B52),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
             ...product.offers.map((offer) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -687,6 +707,15 @@ class _HomePageState extends State<HomePage> {
                             Text(offer.store,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
+                            if (offer.price == cheapestOffer.price)
+                              const Text(
+                                'MENOR PRECIO',
+                                style: TextStyle(
+                                  color: Color(0xFF176B52),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             Text(
                               offer.branchLabel ??
                                   (offer.priceType == 'online_default_channel'
