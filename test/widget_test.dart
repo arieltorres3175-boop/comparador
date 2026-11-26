@@ -24,22 +24,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Filtros para Leche'), findsOneWidget);
 
-    // The brand field is lower in a lazy ListView and may not be built yet.
-    final brandLabel = find.text('Marca (opcional)');
-    await tester.scrollUntilVisible(
-      brandLabel,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(brandLabel, findsOneWidget);
-
-    final brandField = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.labelText == 'Marca (opcional)',
-    );
-    expect(brandField, findsOneWidget);
+    // Filters are data-driven and wait for the first catalog discovery.
+    expect(find.text('Primero consultamos los supermercados.'), findsOneWidget);
+    expect(find.text('Marca (opcional)'), findsNothing);
 
     final searchButton = find.text('Buscar en los supermercados');
     await tester.scrollUntilVisible(
