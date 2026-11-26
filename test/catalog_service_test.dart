@@ -181,6 +181,84 @@ void main() {
 
     service.close();
   });
+  test('una categoría de gaseosas incluye marcas cuyos títulos no dicen gaseosa', () async {
+    final client = MockClient((request) async {
+      if (request.url.host == 'www.cotodigital.com.ar') {
+        return http.Response(jsonEncode({'contents': []}), 200);
+      }
+      return http.Response(jsonEncode([
+        {
+          'productName': 'Coca Cola Zero botella 2 litros',
+          'brand': 'Coca-Cola',
+          'items': [
+            {
+              'ean': '7790000000101',
+              'name': '2 litros',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 3000, 'ListPrice': 3000}}
+              ],
+            }
+          ],
+        },
+        {
+          'productName': 'Pepsi regular lata 354 ml',
+          'brand': 'Pepsi',
+          'items': [
+            {
+              'ean': '7790000000102',
+              'name': '354 ml',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 1200, 'ListPrice': 1200}}
+              ],
+            }
+          ],
+        },
+      ]), 206);
+    });
+    final service = CatalogService(client: client);
+    final result = await service.search('gaseosa');
+
+    expect(result.products, hasLength(2));
+    expect(result.products.map((product) => product.brand),
+        containsAll(['Coca-Cola', 'Pepsi']));
+    service.close();
+  });
+
+  test('una búsqueda filtrada consulta el término elegido y conserva la categoría visible', () async {
+    final requestedTerms = <String>[];
+    final client = MockClient((request) async {
+      if (request.url.host == 'www.cotodigital.com.ar') {
+        return http.Response(jsonEncode({'contents': []}), 200);
+      }
+      requestedTerms.add(request.url.queryParameters['ft'] ?? '');
+      return http.Response(jsonEncode([
+        {
+          'productName': 'Café molido torrado 500 g',
+          'brand': 'Marca A',
+          'items': [
+            {
+              'ean': '7790000000201',
+              'name': '500 g',
+              'images': [],
+              'sellers': [
+                {'commertialOffer': {'Price': 5000, 'ListPrice': 5000}}
+              ],
+            }
+          ],
+        },
+      ]), 206);
+    });
+    final service = CatalogService(client: client);
+    final result = await service.search('cafe', catalogQuery: 'molido');
+
+    expect(requestedTerms, everyElement('molido'));
+    expect(result.query, 'cafe');
+    expect(result.products, hasLength(1));
+    service.close();
+  });
+
   test('interpreta correctamente miles y decimales en precios localizados', () async {
     String rawPrice = '5,000';
     final client = MockClient((request) async {
