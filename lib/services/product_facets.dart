@@ -93,7 +93,7 @@ class ProductFacets {
       });
     }
 
-    final size = RegExp(r'(\d+(?:[.,]\d+)?)\s?(kg|grs?|gramos?|ml|cc|lts?|litros?)\b')
+    final size = RegExp(r'(\d+(?:[.,]\d+)?)\s?(kg|grs?|g|gramos?|ml|cc|lts?|l|litros?)\b')
         .firstMatch(text);
     if (size != null) {
       final rawUnit = size.group(2)!;
