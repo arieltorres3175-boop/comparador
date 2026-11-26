@@ -13,8 +13,8 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 
 ## Cómo se consultan los catálogos
 
-- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX, consultada por páginas de hasta 50 resultados.
-- **Coto:** buscador público de Coto Digital, con paginación y el identificador de sucursal de referencia `200`.
+- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX, consultada por páginas de hasta 50 resultados (hasta 5.000 coincidencias por cadena por búsqueda, con corte de seguridad).
+- **Coto:** buscador público de Coto Digital, con paginación y el identificador de sucursal de referencia `200` (hasta 5.000 coincidencias por búsqueda, con corte de seguridad).
 - En Android, la app consulta directamente los catálogos.
 - En la versión web, las APIs VTEX no habilitan CORS para el sitio de GitHub Pages. Para la web se incluye un intermediario Cloudflare Worker en `worker/`.
 
@@ -32,7 +32,7 @@ Si la variable no está configurada, la búsqueda automática en la versión web
 
 - Los precios son los publicados en catálogos online en el momento de la consulta. Pueden variar por sucursal, código postal, canal de venta y disponibilidad.
 - Coto usa una sucursal de referencia hasta que se incorpore la selección de sucursal del usuario.
-- La comparación marca el menor precio publicado entre ofertas del mismo producto identificado por EAN. Los beneficios bancarios, billeteras, topes, mínimos, exclusiones y reglas de acumulación todavía requieren una fuente verificable y una configuración de medios de pago del usuario.
+- La comparación marca el menor precio publicado entre ofertas del mismo producto identificado por EAN y muestra las promociones de catálogo que cada cadena informa. Los beneficios bancarios, billeteras, topes, mínimos, exclusiones y reglas de acumulación todavía requieren una fuente verificable y una configuración de medios de pago del usuario.
 - La lista compara los precios guardados al agregar cada producto; hay que volver a consultar antes de comprar para confirmar vigencia.
 - No se inicia sesión, no se accede a cuentas de supermercados y no se agregan productos a carritos externos.
 
