@@ -96,7 +96,7 @@ class ProductFacets {
       });
       match('Variedad', {
         r'\bsin lactosa\b|\bzero lactosa\b': 'Sin lactosa',
-        r'\bparcialmente descremada\b|\bsemidescremada\b': 'Parcialmente descremada',
+        r'\bparcialmente descremada\b|\bsemi\s+descremada\b|\bsemidescremada\b': 'Parcialmente descremada',
         r'\bdescremada\b': 'Descremada',
         r'\bentera\b': 'Entera',
         r'\b(protein|proteina|proteica)\b': 'Con proteína',
