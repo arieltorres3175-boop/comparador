@@ -60,4 +60,33 @@ void main() {
       isFalse,
     );
   });
+
+  test('gaseosas expose only catalog-present volume, type and container choices', () {
+    final values = ProductFacets.available('Gaseosas', [
+      'Coca Cola Zero botella descartable 1,5 litros',
+      'Pepsi regular lata 354 ml',
+      'Sprite sin azúcar botella 2 litros',
+    ]);
+    expect(values['Tipo'], containsAll(['Sin azúcar / Zero', 'Regular']));
+    expect(values['Envase'], containsAll(['Botella', 'Lata']));
+    expect(values['Contenido'], containsAll(['1,5 l', '354 ml', '2 l']));
+    expect(ProductFacets.isCategoryProduct('Gaseosas', 'Coca Cola Zero 2 litros'), isFalse);
+    expect(ProductFacets.isCategoryProduct('Gaseosas', 'Gaseosa cola 2 litros'), isTrue);
+  });
+
+  test('tuna and yogurt have category-specific attributes', () {
+    final tuna = ProductFacets.available('Atún', [
+      'Atún lomitos al natural 170 g',
+      'Atún desmenuzado en aceite 170 g',
+    ]);
+    expect(tuna['Preparación'], containsAll(['Al natural', 'En aceite']));
+    expect(tuna['Presentación'], containsAll(['Lomitos', 'Desmenuzado']));
+
+    final yogurt = ProductFacets.available('Yogur', [
+      'Yogur griego frutilla 160 g',
+      'Yogur bebible vainilla 1 litro',
+    ]);
+    expect(yogurt['Tipo'], containsAll(['Griego', 'Bebible']));
+    expect(yogurt['Sabor'], containsAll(['Frutilla', 'Vainilla']));
+  });
 }
