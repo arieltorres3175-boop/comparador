@@ -1,6 +1,12 @@
 name: diagnostico-catalogos-supermercados
 
 on:
+  push:
+    branches:
+      - feat/buscador-supermercados-mvp
+    paths:
+      - 'tools/catalog-smoke-test.mjs'
+      - '.github/workflows/catalog-smoke-test.yml'
   workflow_dispatch:
     inputs:
       search_query:
