@@ -7,6 +7,7 @@ const originalFetch = globalThis.fetch;
 const originalCaches = globalThis.caches;
 const expectedEan = '7793913013467';
 let cotoSearchTerm = null;
+let vtexPrice = 2500;
 
 function vtexResponse(store) {
   const ean = store === 'www.carrefour.com.ar' ? '7790000000000' : expectedEan;
@@ -22,7 +23,7 @@ function vtexResponse(store) {
       images: [{ imageUrl: 'https://images.example/product.jpg' }],
       sellers: [{
         commertialOffer: {
-          Price: 2500,
+          Price: vtexPrice,
           ListPrice: 2700,
           AvailableQuantity: 8,
         },
@@ -63,6 +64,7 @@ function cotoResponse() {
 
 beforeEach(() => {
   cotoSearchTerm = null;
+  vtexPrice = 2500;
   globalThis.caches = {
     default: {
       match: async () => undefined,
@@ -119,4 +121,19 @@ test('groups identical products by EAN and preserves store-specific prices', asy
   assert.equal(exact.comparableByEan, true);
   assert.ok(exact.offers.every((offer) => offer.price === 2500));
   assert.match(cotoSearchTerm, /Arroz con leche Tregar/i);
+});
+
+test('parses comma thousands separators as thousands, not decimal fractions', async () => {
+  vtexPrice = '5,000';
+  const response = await worker.fetch(
+    new Request('https://comparador-api.example.workers.dev/search?q=arroz'),
+    {},
+    { waitUntil: () => {} },
+  );
+  const body = await response.json();
+  const product = body.products.find((item) => item.ean === expectedEan);
+  assert.ok(product);
+  const vtexOffers = product.offers.filter((offer) => offer.store !== 'Coto');
+  assert.equal(vtexOffers.length, 6);
+  assert.ok(vtexOffers.every((offer) => offer.price === 5000));
 });
