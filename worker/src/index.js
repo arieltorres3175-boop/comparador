@@ -211,7 +211,7 @@ async function searchCoto(query, limit) {
     const allRecords = [];
     let status = 200;
     // Coto's Endeca API paginates with No/Nrpp. Cap at two pages for latency.
-    for (let offset = 0, page = 0; page < 200; offset += limit, page++) {
+    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
       url.searchParams.set('No', String(offset));
       const response = await fetch(url, {
         headers: {
