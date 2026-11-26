@@ -1,5 +1,9 @@
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const ComparadorApp());
 
@@ -10,12 +14,10 @@ class ComparadorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'comparador inteligente',
+      title: 'Comparador inteligente',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF176B52),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B52)),
         scaffoldBackgroundColor: const Color(0xFFF6F8F7),
       ),
       home: const HomePage(),
@@ -23,32 +25,33 @@ class ComparadorApp extends StatelessWidget {
   }
 }
 
-class Product {
-  const Product(this.id, this.name, this.detail, this.brand, this.price);
-
-  final String id, name, detail, brand;
-  final double price;
+class Store {
+  const Store(this.name, this.url);
+  final String name;
+  final String url;
 }
 
-const products = <Product>[
-  Product('l1', 'leche entera la serenísima', 'sachet · 1 litro', 'la serenísima', 1650),
-  Product('l2', 'leche parcialmente descremada la serenísima', 'larga vida · caja · 1 litro', 'la serenísima', 1890),
-  Product('l3', 'leche descremada la serenísima', 'sachet · 1 litro', 'la serenísima', 1720),
-  Product('l4', 'leche deslactosada la serenísima', 'larga vida · caja · 1 litro', 'la serenísima', 2150),
-  Product('y1', 'yogur bebible la serenísima', 'frutilla · 900 g', 'la serenísima', 2350),
-  Product('y2', 'yogur firme la serenísima', 'vainilla · 190 g', 'la serenísima', 890),
-  Product('m1', 'manteca sancor', '200 g', 'sancor', 2450),
-  Product('q1', 'queso cremoso', 'por kilogramo', 'varias marcas', 9800),
-  Product('a1', 'aceite girasol cocinero', '900 ml', 'cocinero', 3100),
-  Product('f1', 'fideos matarazzo', '500 g', 'matarazzo', 1450),
-  Product('s1', 'azúcar ledesma', '1 kg', 'ledesma', 1600),
+const stores = <Store>[
+  Store('Carrefour', 'https://www.carrefour.com.ar/'),
+  Store('Jumbo', 'https://www.jumbo.com.ar/'),
+  Store('Coto', 'https://www.coto.com.ar/'),
+  Store('Disco', 'https://www.disco.com.ar/'),
+  Store('Vea', 'https://www.vea.com.ar/'),
+  Store('ChangoMás', 'https://www.masonline.com.ar/'),
+  Store('DIA', 'https://diaonline.supermercadosdia.com.ar/'),
 ];
 
-class Line {
-  Line(this.product);
+class ShoppingItem {
+  ShoppingItem(this.name, {this.quantity = 1});
+  final String name;
+  int quantity;
 
-  final Product product;
-  int quantity = 1;
+  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity};
+
+  factory ShoppingItem.fromJson(Map<String, dynamic> json) => ShoppingItem(
+        json['name'] as String,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      );
 }
 
 class HomePage extends StatefulWidget {
@@ -59,73 +62,110 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final search = TextEditingController();
-  final basket = <Line>[];
+  final searchController = TextEditingController();
+  final basket = <ShoppingItem>[];
   int page = 0;
-  String kind = 'minorista';
+  bool loading = true;
+  String? message;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBasket();
+  }
 
   @override
   void dispose() {
-    search.dispose();
+    searchController.dispose();
     super.dispose();
   }
 
-  List<Product> get matches {
-    final q = search.text.trim().toLowerCase();
-
-    if (q.isEmpty) return [];
-
-    return products.where((p) =>
-      p.name.contains(q) || p.brand.contains(q)
-    ).toList();
-  }
-
-  int count(String id) {
-    final i = basket.indexWhere((x) => x.product.id == id);
-    return i < 0 ? 0 : basket[i].quantity;
-  }
-
-  void add(Product p) {
-    setState(() {
-      final i = basket.indexWhere((x) => x.product.id == p.id);
-
-      if (i < 0) {
-        basket.add(Line(p));
-      } else {
-        basket[i].quantity++;
+  Future<void> _loadBasket() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('shopping_list_v1');
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        basket
+          ..clear()
+          ..addAll(decoded.map((item) =>
+              ShoppingItem.fromJson(item as Map<String, dynamic>)));
       }
-    });
+    } catch (_) {
+      message = 'No se pudo recuperar la lista guardada.';
+    }
+    if (mounted) setState(() => loading = false);
   }
 
-  void quantity(Line line, int delta) {
-    setState(() {
-      line.quantity += delta;
+  Future<void> _saveBasket() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'shopping_list_v1',
+      jsonEncode(basket.map((item) => item.toJson()).toList()),
+    );
+  }
 
-      if (line.quantity <= 0) {
-        basket.remove(line);
+  String get query => searchController.text.trim();
+
+  Future<void> _copySearch() async {
+    if (query.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: query));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Búsqueda copiada. Pegala en el supermercado.')),
+    );
+  }
+
+  Future<void> _openStore(Store store) async {
+    final uri = Uri.parse(store.url);
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir ${store.name}.')),
+        );
       }
-    });
-  }
-
-  double get total => basket.fold(
-    0,
-    (s, x) => s + x.product.price * x.quantity,
-  );
-
-  String money(double n) {
-    final s = n.round().toString();
-    final b = StringBuffer();
-
-    for (var i = 0; i < s.length; i++) {
-      b.write(s[i]);
-
-      if ((s.length - i - 1) > 0 &&
-          (s.length - i - 1) % 3 == 0) {
-        b.write('.');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir ${store.name}.')),
+        );
       }
     }
+  }
 
-    return '\$$b';
+  Future<void> _addItem() async {
+    final name = query;
+    if (name.isEmpty) return;
+    final index = basket.indexWhere(
+      (item) => item.name.toLowerCase() == name.toLowerCase(),
+    );
+    setState(() {
+      if (index >= 0) {
+        basket[index].quantity++;
+      } else {
+        basket.add(ShoppingItem(name));
+      }
+      message = null;
+    });
+    await _saveBasket();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Producto agregado a tu lista.')),
+    );
+  }
+
+  Future<void> _changeQuantity(ShoppingItem item, int delta) async {
+    setState(() {
+      item.quantity += delta;
+      if (item.quantity <= 0) basket.remove(item);
+    });
+    await _saveBasket();
+  }
+
+  Future<void> _removeItem(ShoppingItem item) async {
+    setState(() => basket.remove(item));
+    await _saveBasket();
   }
 
   @override
@@ -136,22 +176,16 @@ class _HomePageState extends State<HomePage> {
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'comparador inteligente',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 19,
-              ),
-            ),
-            Text(
-              'armá tu lista y encontrá dónde ahorrar',
-              style: TextStyle(fontSize: 11, color: Colors.black54),
-            ),
+            Text('comparador inteligente',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
+            Text('buscá en supermercados y armá tu lista',
+                style: TextStyle(fontSize: 11, color: Colors.black54)),
           ],
         ),
         actions: [
           IconButton(
-            onPressed: () => setState(() => page = 1),
+            tooltip: 'Mi lista',
+            onPressed: () => setState(() => page = 2),
             icon: Badge(
               label: Text('${basket.length}'),
               child: const Icon(Icons.shopping_basket_outlined),
@@ -160,64 +194,50 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: SafeArea(
-        child: page == 0
-            ? searchPage()
-            : page == 1
-                ? listPage()
-                : comparePage(),
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : IndexedStack(
+                index: page,
+                children: [
+                  _searchPage(),
+                  _storesPage(),
+                  _basketPage(),
+                ],
+              ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: page,
-        onDestinationSelected: (v) => setState(() => page = v),
+        onDestinationSelected: (value) => setState(() => page = value),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.search),
-            label: 'buscar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt),
-            label: 'mi lista',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.compare_arrows),
-            label: 'comparar',
-          ),
+          NavigationDestination(icon: Icon(Icons.search), label: 'Buscar'),
+          NavigationDestination(icon: Icon(Icons.storefront), label: 'Supermercados'),
+          NavigationDestination(icon: Icon(Icons.list_alt), label: 'Mi lista'),
         ],
       ),
     );
   }
 
-  Widget searchPage() {
-    final found = matches;
-
+  Widget _searchPage() {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
         Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                Color(0xFF176B52),
-                Color(0xFF2B8A69),
-              ],
+              colors: [Color(0xFF176B52), Color(0xFF2B8A69)],
             ),
             borderRadius: BorderRadius.circular(22),
           ),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('Una búsqueda, siete supermercados',
+                  style: TextStyle(color: Colors.white, fontSize: 21,
+                      fontWeight: FontWeight.bold)),
+              SizedBox(height: 7),
               Text(
-                'tu compra, más inteligente',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'buscá productos, agregalos a tu lista y compará precios y promociones',
+                'Escribí el producto que buscás. Desde acá podés copiarlo y abrir cada tienda para consultar su catálogo.',
                 style: TextStyle(color: Colors.white, height: 1.35),
               ),
             ],
@@ -225,407 +245,169 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 18),
         TextField(
-          controller: search,
-          onChanged: (_) => setState(() {}),
+          controller: searchController,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => setState(() => page = 1),
           decoration: InputDecoration(
-            hintText: 'ej. leche la serenísima',
+            hintText: 'Ej. leche La Serenísima entera 1 litro',
             prefixIcon: const Icon(Icons.search),
-            suffixIcon: search.text.isEmpty
-                ? null
-                : IconButton(
-                    onPressed: () {
-                      search.clear();
-                      setState(() {});
-                    },
-                    icon: const Icon(Icons.close),
-                  ),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Text(
-              'tipo de compra',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Spacer(),
-            ChoiceChip(
-              label: const Text('minorista'),
-              selected: kind == 'minorista',
-              onSelected: (_) => setState(() => kind = 'minorista'),
-            ),
-            const SizedBox(width: 6),
-            ChoiceChip(
-              label: const Text('mayorista'),
-              selected: kind == 'mayorista',
-              onSelected: (_) => setState(() => kind = 'mayorista'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        if (search.text.trim().isEmpty) ...[
-          const Text(
-            'probá buscar',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              'leche la serenísima',
-              'yogur',
-              'manteca',
-              'queso',
-              'aceite',
-              'fideos',
-            ].map((x) => ActionChip(
-              label: Text(x),
+            suffixIcon: IconButton(
               onPressed: () {
-                search.text = x;
+                searchController.clear();
                 setState(() {});
               },
-            )).toList(),
-          ),
-          const SizedBox(height: 20),
-          const InfoBox(
-            icon: Icons.lightbulb_outline,
-            title: 'cómo funciona',
-            body: 'escribí un producto, elegí la presentación correcta y agregalo a tu lista. después compararemos el costo total en distintos comercios',
-          ),
-        ] else if (found.isEmpty) ...[
-          const SizedBox(height: 30),
-          const Icon(Icons.search_off, size: 44, color: Colors.black38),
-          const Center(
-            child: Text('no encontramos coincidencias en este catálogo de prueba'),
-          ),
-          const Center(
-            child: Text(
-              'más adelante se conectará el catálogo nacional',
-              style: TextStyle(color: Colors.black54, fontSize: 12),
+              icon: const Icon(Icons.close),
             ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
-        ] else ...[
-          Text(
-            '${found.length} opciones encontradas',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...found.map((p) => Card(
-            elevation: 0,
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFFE7F1EC),
-                    child: Icon(
-                      Icons.shopping_bag_outlined,
-                      color: Color(0xFF176B52),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          p.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          p.detail,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        Text(
-                          p.brand,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.black45,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  FilledButton.tonal(
-                    onPressed: () => add(p),
-                    child: Text(
-                      count(p.id) > 0
-                          ? 'agregar (${count(p.id)})'
-                          : 'agregar',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )),
-        ],
-        if (basket.isNotEmpty) ...[
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: query.isEmpty ? null : () => setState(() => page = 1),
+          icon: const Icon(Icons.travel_explore),
+          label: const Text('Ver supermercados'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: query.isEmpty ? null : _addItem,
+          icon: const Icon(Icons.add_shopping_cart),
+          label: const Text('Agregar a mi lista'),
+        ),
+        const SizedBox(height: 20),
+        const _Notice(
+          title: 'Importante sobre los precios',
+          body: 'Esta versión todavía no consulta ni compara precios automáticamente. No muestra importes inventados: abre los sitios oficiales para que puedas verificar precio, presentación y disponibilidad.',
+          icon: Icons.info_outline,
+        ),
+        if (message != null) ...[
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: () => setState(() => page = 1),
-            icon: const Icon(Icons.shopping_basket_outlined),
-            label: Text('ver mi lista · ${basket.length} productos'),
-          ),
+          Text(message!, style: const TextStyle(color: Colors.red)),
         ],
       ],
     );
   }
 
-  Widget listPage() {
+  Widget _storesPage() {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        const Text(
-          'mi lista de compras',
-          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
+        const Text('Consultar supermercados',
+            style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
         Text(
-          '${basket.length} productos diferentes · compra $kind',
+          query.isEmpty
+              ? 'Volvé a Buscar y escribí un producto para copiarlo.'
+              : 'Producto a consultar: $query',
           style: const TextStyle(color: Colors.black54),
         ),
-        const SizedBox(height: 14),
-        if (basket.isEmpty)
-          const InfoBox(
-            icon: Icons.add_shopping_cart,
-            title: 'tu lista está vacía',
-            body: 'volvé a buscar productos y tocá agregar para empezar a armarla',
-          )
-        else ...[
-          ...basket.map((line) => Card(
-            elevation: 0,
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          line.product.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(() => basket.remove(line)),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    line.product.detail,
-                    style: const TextStyle(color: Colors.black54, fontSize: 12),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => quantity(line, -1),
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
-                      Text(
-                        '${line.quantity}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        onPressed: () => quantity(line, 1),
-                        icon: const Icon(Icons.add_circle_outline),
-                      ),
-                      const Spacer(),
-                      Text(
-                        money(line.product.price * line.quantity),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          )),
-          Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('subtotal de referencia'),
-                      Text(
-                        money(total),
-                        style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'importe ilustrativo: todavía no representa precios reales de comercios',
-                    style: TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(height: 12),
+        if (query.isNotEmpty)
+          FilledButton.tonalIcon(
+            onPressed: _copySearch,
+            icon: const Icon(Icons.copy),
+            label: const Text('Copiar nombre del producto'),
           ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: () => setState(() => page = 2),
-            icon: const Icon(Icons.compare_arrows),
-            label: const Text('comparar mi lista'),
+        const SizedBox(height: 8),
+        ...stores.map((store) => Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 9),
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFE7F1EC),
+              child: Icon(Icons.storefront, color: Color(0xFF176B52)),
+            ),
+            title: Text(store.name,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Sitio oficial · búsqueda manual'),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => _openStore(store),
           ),
-        ],
-        OutlinedButton.icon(
-          onPressed: () => setState(() => page = 0),
-          icon: const Icon(Icons.add),
-          label: const Text('seguir agregando productos'),
+        )),
+        const SizedBox(height: 8),
+        const _Notice(
+          title: 'Cómo usar esta versión',
+          body: 'Copiá el producto, abrí una tienda y pegalo en su buscador. La app aún no extrae resultados ni confirma precios por sí sola.',
+          icon: Icons.lightbulb_outline,
         ),
       ],
     );
   }
 
-  Widget comparePage() {
-    if (basket.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(18),
-        children: const [
-          InfoBox(
-            icon: Icons.compare_arrows,
-            title: 'todavía no hay nada para comparar',
-            body: 'agregá productos a tu lista y después vas a poder ver la comparación',
-          ),
-        ],
-      );
-    }
-
-    final stores = [
-      ('supermercado norte', 1.00, 'sin descuento adicional en este ejemplo'),
-      ('supermercado centro', 0.94, '6% de descuento ilustrativo aplicado'),
-      ('supermercado sur', 0.97, '3% de ahorro ilustrativo por promoción'),
-    ];
-
+  Widget _basketPage() {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        const Text(
-          'comparación de tu lista',
-          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
-        ),
+        const Text('Mi lista de compras',
+            style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
         const SizedBox(height: 5),
-        const Text(
-          'ejemplo de cálculo · no son precios ni promociones reales',
-          style: TextStyle(
-            color: Colors.deepOrange,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const Text('La lista queda guardada en este teléfono.',
+            style: TextStyle(color: Colors.black54)),
         const SizedBox(height: 14),
-        ...stores.asMap().entries.map((entry) {
-          final store = entry.value;
-          final best = entry.key == 1;
-          final amount = total * store.$2;
-
-          return Card(
+        if (basket.isEmpty)
+          const _Notice(
+            title: 'Tu lista está vacía',
+            body: 'Buscá un producto y tocá “Agregar a mi lista”.',
+            icon: Icons.add_shopping_cart,
+          )
+        else ...[
+          ...basket.map((item) => Card(
             elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(
-                color: best
-                    ? const Color(0xFF23845F)
-                    : const Color(0xFFE1E8E4),
-                width: best ? 1.5 : 1,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              title: Text(item.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text('Cantidad: ${item.quantity}'),
+              leading: const Icon(Icons.shopping_bag_outlined),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.storefront_outlined,
-                        color: Color(0xFF176B52),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          store.$1,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      if (best)
-                        const Chip(
-                          label: Text('menor total', style: TextStyle(fontSize: 11)),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                    ],
+                  IconButton(
+                    tooltip: 'Quitar uno',
+                    onPressed: () => _changeQuantity(item, -1),
+                    icon: const Icon(Icons.remove_circle_outline),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    money(amount),
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                      color: best
-                          ? const Color(0xFF176B52)
-                          : Colors.black87,
-                    ),
+                  IconButton(
+                    tooltip: 'Agregar uno',
+                    onPressed: () => _changeQuantity(item, 1),
+                    icon: const Icon(Icons.add_circle_outline),
                   ),
-                  Text(
-                    store.$3,
-                    style: const TextStyle(color: Colors.black54, fontSize: 12),
+                  IconButton(
+                    tooltip: 'Eliminar',
+                    onPressed: () => _removeItem(item),
+                    icon: const Icon(Icons.delete_outline),
                   ),
                 ],
               ),
             ),
-          );
-        }),
-        const SizedBox(height: 8),
-        const InfoBox(
-          icon: Icons.verified_outlined,
-          title: 'para comparar en serio',
-          body: 'hay que conectar precios y promociones verificadas de cada comercio, sucursales, medios de pago, topes, vigencias y condiciones. hasta entonces esta pantalla usa datos ficticios y no recomienda una compra real',
+          )),
+          OutlinedButton.icon(
+            onPressed: () async {
+              setState(() => basket.clear());
+              await _saveBasket();
+            },
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: const Text('Vaciar lista'),
+          ),
+        ],
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => setState(() => page = 1),
+          icon: const Icon(Icons.storefront),
+          label: const Text('Consultar supermercados'),
         ),
       ],
     );
   }
 }
 
-class InfoBox extends StatelessWidget {
-  const InfoBox({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
+class _Notice extends StatelessWidget {
+  const _Notice({required this.title, required this.body, required this.icon});
   final String title;
   final String body;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -647,14 +429,8 @@ class InfoBox extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 5),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    height: 1.35,
-                    fontSize: 13,
-                  ),
-                ),
+                Text(body, style: const TextStyle(
+                    color: Colors.black54, height: 1.35, fontSize: 13)),
               ],
             ),
           ),
