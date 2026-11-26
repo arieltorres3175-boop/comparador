@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'product_facets.dart';
+
 const _workerApiBase = String.fromEnvironment(
   'COMPARADOR_API_BASE_URL',
   defaultValue: '',
@@ -587,6 +589,15 @@ bool _matchesSearchQuery(String productName, String query) {
   if (normalizedName.isEmpty || terms.isEmpty) return false;
   final productTerms = normalizedName.split(' ');
   if (!terms.every(productTerms.contains)) return false;
+  if (terms.length == 1 &&
+      const {'leche', 'cafe', 'manteca'}.contains(terms.first)) {
+    final category = terms.first == 'cafe'
+        ? 'Café'
+        : terms.first == 'leche'
+            ? 'Leche'
+            : 'Manteca';
+    if (!ProductFacets.isCategoryProduct(category, productName)) return false;
+  }
   if (terms.length == 1 &&
       terms.first == 'leche' &&
       productTerms.length >= 2 &&
