@@ -10,6 +10,20 @@ const stores = [
   { name: 'ChangoMás', domain: 'www.masonline.com.ar' },
 ];
 
+function parseLocalizedPrice(value) {
+  if (value == null) return null;
+  let raw = String(value).trim().replace(/[^0-9,.-]/g, '');
+  if (raw.includes(',') && raw.includes('.')) {
+    raw = raw.replace(/\./g, '').replace(',', '.');
+  } else if (raw.includes(',')) {
+    raw = raw.replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
+    raw = raw.replace(/\./g, '');
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function firstOffer(product) {
   for (const item of product.items ?? []) {
     for (const seller of item.sellers ?? []) {
@@ -108,10 +122,11 @@ async function checkCoto() {
       const attrs = record?.records?.[0]?.attributes ?? {};
       const value = (key) => attrs[key]?.[0] ?? null;
       const rawPrice = value('sku.activePrice');
-      const price = rawPrice == null ? null : Number(String(rawPrice).replace(/[$.]/g, '').replace(',', '.'));
+      const price = parseLocalizedPrice(rawPrice);
       return {
         name: value('sku.displayName'),
         ean: value('product.eanPrincipal'),
+        rawPrice,
         price,
         image: value('product.largeImage.url'),
       };
@@ -123,6 +138,40 @@ async function checkCoto() {
       reason: error instanceof Error ? error.message : String(error) };
   }
 }
+async function checkCotoExactEan(ean) {
+  const url = new URL('https://www.cotodigital.com.ar/sitios/cdigi/categoria');
+  url.searchParams.set('_dyncharset', 'utf8');
+  url.searchParams.set('Dy', '1');
+  url.searchParams.set('Nrpp', '20');
+  url.searchParams.set('Ntt', ean);
+  url.searchParams.set('idSucursal', '200');
+  url.searchParams.set('format', 'json');
+  try {
+    const response = await fetch(url, {
+      headers: { accept: 'application/json', referer: 'https://www.cotodigital.com.ar/',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36' },
+      signal: AbortSignal.timeout(18000),
+    });
+    if (!response.ok) return { store: 'Coto', ok: false, status: response.status, exactMatch: false };
+    const data = await response.json();
+    const records = data?.contents?.[0]?.Main?.[2]?.contents?.[0]?.records ?? [];
+    const matches = records.flatMap((record) => {
+      const attrs = record?.records?.[0]?.attributes ?? {};
+      const value = (key) => attrs[key]?.[0] ?? null;
+      const foundEan = String(value('product.eanPrincipal') ?? '');
+      if (foundEan !== ean) return [];
+      const rawPrice = value('sku.activePrice');
+      return [{ name: value('sku.displayName'), ean: foundEan,
+        rawPrice, price: parseLocalizedPrice(rawPrice) }];
+    });
+    return { store: 'Coto', ok: true, status: response.status,
+      exactMatch: matches.length > 0, matches };
+  } catch (error) {
+    return { store: 'Coto', ok: false, exactMatch: false,
+      reason: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function checkExactEan(store, ean) {
   const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
   url.searchParams.set('ft', ean);
@@ -165,7 +214,7 @@ for (const store of stores) {
 }
 const coto = await checkCoto();
 const verificationEan = process.env.VERIFY_EAN?.trim() || '7793913013467';
-const exactEanResults = [];
+const exactEanResults = [await checkCotoExactEan(verificationEan)];
 for (const store of stores) {
   exactEanResults.push(await checkExactEan(store, verificationEan));
   await new Promise((resolve) => setTimeout(resolve, 1200));
