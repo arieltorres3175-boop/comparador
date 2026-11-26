@@ -44,6 +44,7 @@ async function checkStore(store) {
     const response = await fetch(url, {
       headers: {
         accept: 'application/json',
+        origin: 'https://arieltorres3175-boop.github.io',
         'user-agent': 'ComparadorInteligenteCatalogCheck/0.1 (public catalog lookup)',
       },
       signal: AbortSignal.timeout(18000),
@@ -82,6 +83,7 @@ async function checkStore(store) {
     });
 
     return { store: store.name, domain: store.domain, status: response.status,
+      corsAllowOrigin: response.headers.get('access-control-allow-origin'),
       ok: true, resultCount: products.length, sample };
   } catch (error) {
     return { store: store.name, domain: store.domain, ok: false,
@@ -102,6 +104,7 @@ async function checkCoto() {
       headers: {
         accept: 'application/json, text/plain, */*',
         referer: 'https://www.cotodigital.com.ar/',
+        origin: 'https://arieltorres3175-boop.github.io',
         'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
       },
       signal: AbortSignal.timeout(18000),
@@ -132,6 +135,7 @@ async function checkCoto() {
       };
     });
     return { store: 'Coto', ok: true, status: response.status, contentType,
+      corsAllowOrigin: response.headers.get('access-control-allow-origin'),
       resultCount: records.length, sample, topLevelKeys: Object.keys(data ?? {}) };
   } catch (error) {
     return { store: 'Coto', ok: false,
@@ -165,6 +169,7 @@ async function checkCotoExactEan(ean) {
         rawPrice, price: parseLocalizedPrice(rawPrice) }];
     });
     return { store: 'Coto', ok: true, status: response.status,
+      corsAllowOrigin: response.headers.get('access-control-allow-origin'),
       exactMatch: matches.length > 0, matches };
   } catch (error) {
     return { store: 'Coto', ok: false, exactMatch: false,
@@ -179,7 +184,8 @@ async function checkExactEan(store, ean) {
   url.searchParams.set('_to', '49');
   try {
     const response = await fetch(url, {
-      headers: { accept: 'application/json', 'user-agent': 'ComparadorInteligenteCatalogCheck/0.2' },
+      headers: { accept: 'application/json', origin: 'https://arieltorres3175-boop.github.io',
+        'user-agent': 'ComparadorInteligenteCatalogCheck/0.2' },
       signal: AbortSignal.timeout(18000),
     });
     if (!response.ok) return { store: store.name, ok: false, status: response.status, exactMatch: false };
@@ -199,6 +205,7 @@ async function checkExactEan(store, ean) {
       }
     }
     return { store: store.name, ok: true, status: response.status,
+      corsAllowOrigin: response.headers.get('access-control-allow-origin'),
       exactMatch: matches.length > 0, matches };
   } catch (error) {
     return { store: store.name, ok: false, exactMatch: false,
