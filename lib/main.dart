@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'services/catalog_service.dart';
+
 void main() => runApp(const ComparadorApp());
 
 class ComparadorApp extends StatelessWidget {
@@ -34,7 +36,7 @@ class Store {
 const stores = <Store>[
   Store('Carrefour', 'https://www.carrefour.com.ar/'),
   Store('Jumbo', 'https://www.jumbo.com.ar/'),
-  Store('Coto', 'https://www.coto.com.ar/'),
+  Store('Coto', 'https://www.cotodigital.com.ar/'),
   Store('Disco', 'https://www.disco.com.ar/'),
   Store('Vea', 'https://www.vea.com.ar/'),
   Store('ChangoMás', 'https://www.masonline.com.ar/'),
@@ -42,16 +44,45 @@ const stores = <Store>[
 ];
 
 class ShoppingItem {
-  ShoppingItem(this.name, {this.quantity = 1});
+  ShoppingItem(
+    this.name, {
+    this.quantity = 1,
+    this.ean,
+    this.offers = const [],
+    this.observedAt,
+  });
+
   final String name;
   int quantity;
+  final String? ean;
+  List<StoreOffer> offers;
+  DateTime? observedAt;
 
-  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity};
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'quantity': quantity,
+        'ean': ean,
+        'offers': offers.map((offer) => offer.toJson()).toList(),
+        'observedAt': observedAt?.toIso8601String(),
+      };
 
   factory ShoppingItem.fromJson(Map<String, dynamic> json) => ShoppingItem(
         json['name'] as String,
         quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+        ean: json['ean']?.toString(),
+        offers: (json['offers'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(StoreOffer.fromJson)
+            .toList(),
+        observedAt: DateTime.tryParse(json['observedAt']?.toString() ?? ''),
       );
+}
+
+class _BasketTotal {
+  const _BasketTotal(this.store, this.total, this.missing);
+  final String store;
+  final double total;
+  final int missing;
 }
 
 class HomePage extends StatefulWidget {
@@ -64,9 +95,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final searchController = TextEditingController();
   final basket = <ShoppingItem>[];
+  final catalogService = CatalogService();
   int page = 0;
   bool loading = true;
+  bool searching = false;
   String? message;
+  String? searchError;
+  CatalogSearchResult? searchResult;
 
   @override
   void initState() {
@@ -77,6 +112,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     searchController.dispose();
+    catalogService.close();
     super.dispose();
   }
 
@@ -107,46 +143,81 @@ class _HomePageState extends State<HomePage> {
 
   String get query => searchController.text.trim();
 
+  Future<void> _performSearch() async {
+    if (query.length < 2 || searching) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      page = 1;
+      searching = true;
+      searchError = null;
+      searchResult = null;
+    });
+    try {
+      final result = await catalogService.search(query);
+      if (!mounted) return;
+      setState(() => searchResult = result);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() =>
+          searchError = error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => searching = false);
+    }
+  }
+
   Future<void> _copySearch() async {
     if (query.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: query));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Búsqueda copiada. Pegala en el supermercado.')),
+      const SnackBar(content: Text('Búsqueda copiada.')),
     );
   }
 
-  Future<void> _openStore(Store store) async {
-    final uri = Uri.parse(store.url);
+  Future<void> _openStore(Store store) async => _openUrl(store.url);
+
+  Future<void> _openUrl(String? value) async {
+    if (value == null || value.isEmpty) return;
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(
+        Uri.parse(value),
+        mode: LaunchMode.externalApplication,
+      );
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir ${store.name}.')),
+          const SnackBar(content: Text('No se pudo abrir el enlace.')),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir ${store.name}.')),
+          const SnackBar(content: Text('No se pudo abrir el enlace.')),
         );
       }
     }
   }
 
-  Future<void> _addItem() async {
-    final name = query;
-    if (name.isEmpty) return;
-    final index = basket.indexWhere(
-      (item) => item.name.toLowerCase() == name.toLowerCase(),
-    );
+  Future<void> _addProduct(CatalogProduct product) async {
+    final index = basket.indexWhere((item) {
+      if (product.ean != null && product.ean!.isNotEmpty) {
+        return item.ean == product.ean;
+      }
+      return item.ean == null &&
+          item.name.toLowerCase() == product.name.toLowerCase();
+    });
     setState(() {
       if (index >= 0) {
         basket[index].quantity++;
+        basket[index].offers = product.offers;
+        basket[index].observedAt = searchResult?.generatedAt ?? DateTime.now();
       } else {
-        basket.add(ShoppingItem(name));
+        basket.add(ShoppingItem(
+          product.name,
+          ean: product.ean,
+          offers: product.offers,
+          observedAt: searchResult?.generatedAt ?? DateTime.now(),
+        ));
       }
-      message = null;
     });
     await _saveBasket();
     if (!mounted) return;
@@ -168,6 +239,45 @@ class _HomePageState extends State<HomePage> {
     await _saveBasket();
   }
 
+  List<_BasketTotal> _basketTotals() {
+    return stores.map((store) {
+      var total = 0.0;
+      var missing = 0;
+      for (final item in basket) {
+        final matching =
+            item.offers.where((offer) => offer.store == store.name).toList();
+        if (matching.isEmpty) {
+          missing++;
+        } else {
+          matching.sort((a, b) => a.price.compareTo(b.price));
+          total += matching.first.price * item.quantity;
+        }
+      }
+      return _BasketTotal(store.name, total, missing);
+    }).toList();
+  }
+
+  String money(double amount) {
+    final digits = amount.round().toString();
+    final result = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      result.write(digits[i]);
+      final remaining = digits.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) result.write('.');
+    }
+    return r'$' + result.toString();
+  }
+
+  String _dateLabel(DateTime? value) {
+    if (value == null) return 'Sin fecha de consulta';
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day/$month/${local.year} $hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,7 +288,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Text('comparador inteligente',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
-            Text('buscá en supermercados y armá tu lista',
+            Text('precios publicados en supermercados',
                 style: TextStyle(fontSize: 11, color: Colors.black54)),
           ],
         ),
@@ -210,7 +320,8 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: (value) => setState(() => page = value),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Buscar'),
-          NavigationDestination(icon: Icon(Icons.storefront), label: 'Supermercados'),
+          NavigationDestination(
+              icon: Icon(Icons.storefront), label: 'Resultados'),
           NavigationDestination(icon: Icon(Icons.list_alt), label: 'Mi lista'),
         ],
       ),
@@ -233,11 +344,13 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Una búsqueda, siete supermercados',
-                  style: TextStyle(color: Colors.white, fontSize: 21,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 21,
                       fontWeight: FontWeight.bold)),
               SizedBox(height: 7),
               Text(
-                'Escribí el producto que buscás. Desde acá podés copiarlo y abrir cada tienda para consultar su catálogo.',
+                'Buscá por nombre o código de barras. Elegí la presentación exacta y compará los precios publicados.',
                 style: TextStyle(color: Colors.white, height: 1.35),
               ),
             ],
@@ -247,14 +360,17 @@ class _HomePageState extends State<HomePage> {
         TextField(
           controller: searchController,
           textInputAction: TextInputAction.search,
-          onSubmitted: (_) => setState(() => page = 1),
+          onSubmitted: (_) => _performSearch(),
           decoration: InputDecoration(
             hintText: 'Ej. leche La Serenísima entera 1 litro',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
               onPressed: () {
                 searchController.clear();
-                setState(() {});
+                setState(() {
+                  searchResult = null;
+                  searchError = null;
+                });
               },
               icon: const Icon(Icons.close),
             ),
@@ -266,21 +382,21 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: query.isEmpty ? null : () => setState(() => page = 1),
-          icon: const Icon(Icons.travel_explore),
-          label: const Text('Ver supermercados'),
+          onPressed: query.length < 2 || searching ? null : _performSearch,
+          icon: searching
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.travel_explore),
+          label: Text(searching ? 'Buscando...' : 'Buscar en los supermercados'),
         ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: query.isEmpty ? null : _addItem,
-          icon: const Icon(Icons.add_shopping_cart),
-          label: const Text('Agregar a mi lista'),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         const _Notice(
-          title: 'Importante sobre los precios',
-          body: 'Esta versión todavía no consulta ni compara precios automáticamente. No muestra importes inventados: abre los sitios oficiales para que puedas verificar precio, presentación y disponibilidad.',
-          icon: Icons.info_outline,
+          title: 'Cómo se comparan los productos',
+          body: 'Cuando hay código EAN, la app compara únicamente el mismo código de barras. Si una tienda no devuelve ese producto, no inventamos un precio ni lo reemplazamos por otra presentación.',
+          icon: Icons.verified_outlined,
         ),
         if (message != null) ...[
           const SizedBox(height: 10),
@@ -291,52 +407,228 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _storesPage() {
+    final result = searchResult;
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        const Text('Consultar supermercados',
-            style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
         Text(
-          query.isEmpty
-              ? 'Volvé a Buscar y escribí un producto para copiarlo.'
-              : 'Producto a consultar: $query',
-          style: const TextStyle(color: Colors.black54),
+          query.isEmpty ? 'Resultados' : 'Resultados para $query',
+          style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 12),
-        if (query.isNotEmpty)
-          FilledButton.tonalIcon(
-            onPressed: _copySearch,
-            icon: const Icon(Icons.copy),
-            label: const Text('Copiar nombre del producto'),
+        const SizedBox(height: 6),
+        if (searching) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 12),
+          const Text('Consultando los catálogos online...'),
+        ] else if (searchError != null) ...[
+          _Notice(
+            title: 'No pudimos completar la búsqueda',
+            body: searchError!,
+            icon: Icons.error_outline,
           ),
-        const SizedBox(height: 8),
-        ...stores.map((store) => Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 9),
-          child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Color(0xFFE7F1EC),
-              child: Icon(Icons.storefront, color: Color(0xFF176B52)),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _performSearch,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+          ),
+        ] else if (result == null) ...[
+          const _Notice(
+            title: 'Buscá un producto para empezar',
+            body: 'La app consulta los catálogos de las siete cadenas y muestra los precios que cada una publica.',
+            icon: Icons.search,
+          ),
+        ] else ...[
+          Text(
+            'Consulta: ${_dateLabel(result.generatedAt)}',
+            style: const TextStyle(color: Colors.black54, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: result.stores
+                .map((status) => Chip(
+                      avatar: Icon(
+                        status.ok ? Icons.check_circle : Icons.error_outline,
+                        size: 16,
+                        color: status.ok
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
+                      ),
+                      label: Text(status.store),
+                      visualDensity: VisualDensity.compact,
+                    ))
+                .toList(),
+          ),
+          if (result.products.isEmpty) ...[
+            const SizedBox(height: 16),
+            const _Notice(
+              title: 'No encontramos productos',
+              body: 'Probá con otro nombre o con el código de barras EAN.',
+              icon: Icons.search_off,
             ),
-            title: Text(store.name,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Sitio oficial · búsqueda manual'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => _openStore(store),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text(
+              '${result.products.length} coincidencias',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...result.products.map(_productCard),
+          ],
+          const SizedBox(height: 12),
+          const _Notice(
+            title: 'Importante sobre los precios',
+            body: 'Son precios publicados en catálogos online al momento de la consulta. Pueden variar por sucursal, código postal, stock y medio de pago. Coto usa una sucursal de referencia hasta que se configure la ubicación.',
+            icon: Icons.info_outline,
           ),
-        )),
-        const SizedBox(height: 8),
-        const _Notice(
-          title: 'Cómo usar esta versión',
-          body: 'Copiá el producto, abrí una tienda y pegalo en su buscador. La app aún no extrae resultados ni confirma precios por sí sola.',
-          icon: Icons.lightbulb_outline,
-        ),
+        ],
+        const SizedBox(height: 14),
+        const Divider(),
+        const Text('Abrir un supermercado',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        ...stores.map((store) => ListTile(
+              dense: true,
+              leading: const Icon(Icons.storefront_outlined),
+              title: Text(store.name),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _openStore(store),
+            )),
       ],
     );
   }
 
+  Widget _productCard(CatalogProduct product) {
+    if (product.offers.isEmpty) return const SizedBox.shrink();
+    final imageOffer = product.offers.firstWhere(
+      (offer) => offer.image != null && offer.image!.isNotEmpty,
+      orElse: () => product.offers.first,
+    );
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (imageOffer.image != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      imageOffer.image!,
+                      width: 68,
+                      height: 68,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        width: 68,
+                        height: 68,
+                        child: Icon(Icons.shopping_bag_outlined, size: 32),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(
+                    width: 68,
+                    height: 68,
+                    child: Icon(Icons.shopping_bag_outlined, size: 32),
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (product.brand != null)
+                        Text(product.brand!,
+                            style: const TextStyle(
+                                color: Colors.black54, fontSize: 12)),
+                      Text(
+                        product.comparableByEan
+                            ? 'EAN: ${product.ean}'
+                            : 'Sin EAN · no comparable por código',
+                        style: const TextStyle(
+                            color: Colors.black54, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...product.offers.map((offer) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(offer.store,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            Text(
+                              offer.branchLabel ??
+                                  (offer.priceType == 'online_default_channel'
+                                      ? 'Precio online'
+                                      : 'Precio publicado'),
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(money(offer.price),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          if (offer.listPrice != null &&
+                              offer.listPrice! > offer.price)
+                            Text(
+                              'Lista: ${money(offer.listPrice!)}',
+                              style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 10,
+                                  decoration: TextDecoration.lineThrough),
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        tooltip: 'Ver producto en la tienda',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => _openUrl(offer.url),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                      ),
+                    ],
+                  ),
+                )),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _addProduct(product),
+                icon: const Icon(Icons.add_shopping_cart),
+                label: const Text('Agregar a mi lista'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _basketPage() {
+    final totals = _basketTotals();
+    final complete = totals.where((item) => item.missing == 0).toList()
+      ..sort((a, b) => a.total.compareTo(b.total));
+    final bestStore = complete.isEmpty ? null : complete.first.store;
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -349,40 +641,119 @@ class _HomePageState extends State<HomePage> {
         if (basket.isEmpty)
           const _Notice(
             title: 'Tu lista está vacía',
-            body: 'Buscá un producto y tocá “Agregar a mi lista”.',
+            body: 'Buscá un producto, elegí la presentación correcta y tocá “Agregar a mi lista”.',
             icon: Icons.add_shopping_cart,
           )
         else ...[
-          ...basket.map((item) => Card(
-            elevation: 0,
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              title: Text(item.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text('Cantidad: ${item.quantity}'),
-              leading: const Icon(Icons.shopping_bag_outlined),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Quitar uno',
-                    onPressed: () => _changeQuantity(item, -1),
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  IconButton(
-                    tooltip: 'Agregar uno',
-                    onPressed: () => _changeQuantity(item, 1),
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                  IconButton(
-                    tooltip: 'Eliminar',
-                    onPressed: () => _removeItem(item),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
+          ...basket.map((item) {
+            final sortedOffers = item.offers.toList()
+              ..sort((a, b) => a.price.compareTo(b.price));
+            final bestOffer =
+                sortedOffers.isEmpty ? null : sortedOffers.first;
+            return Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(item.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        IconButton(
+                          tooltip: 'Eliminar',
+                          onPressed: () => _removeItem(item),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
+                    ),
+                    if (item.ean != null)
+                      Text('EAN: ${item.ean}',
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 11)),
+                    if (bestOffer != null)
+                      Text(
+                        'Mejor precio consultado: ${money(bestOffer.price)} en ${bestOffer.store}',
+                        style: const TextStyle(
+                            color: Color(0xFF176B52),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12),
+                      ),
+                    Text(
+                      'Precios consultados: ${_dateLabel(item.observedAt)}',
+                      style: const TextStyle(
+                          color: Colors.black54, fontSize: 10),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => _changeQuantity(item, -1),
+                          icon: const Icon(Icons.remove_circle_outline),
+                        ),
+                        Text('${item.quantity}',
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        IconButton(
+                          onPressed: () => _changeQuantity(item, 1),
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                        const Spacer(),
+                        Text(
+                          bestOffer == null
+                              ? 'Sin precio'
+                              : money(bestOffer.price * item.quantity),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            );
+          }),
+          const SizedBox(height: 8),
+          const Text('Comparación de la lista completa',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          const SizedBox(height: 8),
+          if (bestStore == null)
+            const _Notice(
+              title: 'Todavía no hay una tienda con todos los productos',
+              body: 'Algunas tiendas no publican todos los artículos. La app no considera completo un total si faltan productos.',
+              icon: Icons.info_outline,
             ),
-          )),
+          ...totals.map((item) => Card(
+                elevation: 0,
+                margin: const EdgeInsets.only(bottom: 7),
+                child: ListTile(
+                  leading: Icon(
+                    item.store == bestStore
+                        ? Icons.emoji_events_outlined
+                        : Icons.storefront_outlined,
+                    color: item.store == bestStore
+                        ? const Color(0xFF176B52)
+                        : null,
+                  ),
+                  title: Text(item.store,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(item.missing == 0
+                      ? 'Todos los productos encontrados'
+                      : 'Faltan ${item.missing} de ${basket.length} productos'),
+                  trailing: Text(
+                    item.missing == 0 ? money(item.total) : 'Incompleto',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              )),
+          const SizedBox(height: 8),
+          const _Notice(
+            title: 'Antes de ir a comprar',
+            body: 'La comparación usa los precios guardados al agregar cada producto. Actualizá la búsqueda antes de comprar para confirmar que sigan vigentes.',
+            icon: Icons.schedule,
+          ),
           OutlinedButton.icon(
             onPressed: () async {
               setState(() => basket.clear());
@@ -394,9 +765,9 @@ class _HomePageState extends State<HomePage> {
         ],
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: () => setState(() => page = 1),
-          icon: const Icon(Icons.storefront),
-          label: const Text('Consultar supermercados'),
+          onPressed: () => setState(() => page = 0),
+          icon: const Icon(Icons.search),
+          label: const Text('Buscar más productos'),
         ),
       ],
     );
