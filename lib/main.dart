@@ -393,7 +393,7 @@ class _HomePageState extends State<HomePage> {
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => _performSearch(),
           decoration: InputDecoration(
-            hintText: 'Ej. leche La Serenísima entera 1 litro',
+            hintText: '¿Qué buscás? Ej. leche, aceite, crema, yogur…',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
               onPressed: () {
@@ -410,6 +410,25 @@ class _HomePageState extends State<HomePage> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
           onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        const Text('Búsquedas frecuentes',
+            style: TextStyle(color: Colors.black54, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 7,
+          runSpacing: 4,
+          children: ['Leche', 'Aceite', 'Crema', 'Yogur', 'Azúcar']
+              .map((term) => ActionChip(
+                    label: Text(term),
+                    onPressed: searching
+                        ? null
+                        : () {
+                            searchController.text = term.toLowerCase();
+                            _performSearch();
+                          },
+                  ))
+              .toList(),
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
