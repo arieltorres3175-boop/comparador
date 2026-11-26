@@ -284,7 +284,7 @@ class CatalogService {
 
       // VTEX pagina los resultados en bloques. Seguimos consultando hasta
       // recibir una página incompleta o vacía, con un límite de seguridad.
-      for (var offset = 0; offset < limit * 2; offset += limit) {
+      for (var offset = 0, page = 0; page < 200; offset += limit, page++) {
         final uri = Uri.https(
           store.domain,
           '/api/catalog_system/pub/products/search',
@@ -417,10 +417,8 @@ class CatalogService {
       final allRecords = <Map<String, dynamic>>[];
       var lastStatus = 200;
 
-      // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos las páginas
-      // disponibles hasta que el buscador devuelve menos resultados.
-      // Coto puede devolver miles de coincidencias para búsquedas amplias.
-      // Consultamos como máximo dos páginas para evitar esperas excesivas.
+      // Coto utiliza paginación Endeca (No + Nrpp). Recuperamos todas las
+      // páginas disponibles hasta que el buscador devuelve menos resultados.
       for (var offset = 0; offset < limit * 2; offset += limit) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
