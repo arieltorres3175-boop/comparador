@@ -46,4 +46,22 @@ void main() {
     expect(searchButton, findsOneWidget);
     expect(find.text('Consultando los catálogos online...'), findsNothing);
   });
+
+  testWidgets('permite cargar un producto a la lista sin consultar supermercados', (tester) async {
+    await tester.pumpWidget(const ComparadorApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'aceite de girasol Natura 900 ml');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Agregar a mi lista sin buscar precios'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mi lista').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('aceite de girasol Natura 900 ml'), findsOneWidget);
+    expect(find.text('Pendiente de comparar · todavía no consultamos precios'), findsOneWidget);
+  });
 }
