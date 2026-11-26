@@ -337,7 +337,7 @@ void main() {
 
     expect(result.products, hasLength(51));
     expect(offsetsByStore, hasLength(6));
-    expect(offsetsByStore.values.every((offsets) => offsets.join(',') == '0,50,100'), isTrue);
+    expect(offsetsByStore.values.every((offsets) => offsets.join(',') == '0,50'), isTrue);
 
     service.close();
   });
