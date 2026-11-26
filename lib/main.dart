@@ -164,8 +164,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<String> get _availableBrands {
-    if (selectedCategory == null || discoveryResult == null) return const [];
-    return ProductFacets.availableBrands(selectedCategory!, _discoveredProductText);
+    final result = discoveryResult;
+    if (selectedCategory == null || result == null) return const [];
+    final found = <String>{
+      ...ProductFacets.availableBrands(selectedCategory!, _discoveredProductText),
+    };
+    for (final product in result.products) {
+      if (product.brand != null && product.brand!.trim().isNotEmpty) {
+        found.add(product.brand!.trim());
+      }
+      for (final offer in product.offers) {
+        if (offer.brand != null && offer.brand!.trim().isNotEmpty) {
+          found.add(offer.brand!.trim());
+        }
+      }
+    }
+    final sorted = found.toList()..sort();
+    return sorted;
   }
 
   Map<String, List<String>> get _availableFacets {
@@ -534,7 +549,7 @@ class _HomePageState extends State<HomePage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: DropdownButtonFormField<String>(
-                  value: selectedBrand,
+                  value: _availableBrands.contains(selectedBrand) ? selectedBrand : null,
                   decoration: InputDecoration(
                     labelText: 'Marca',
                     prefixIcon: const Icon(Icons.sell_outlined),
