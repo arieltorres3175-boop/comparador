@@ -1,0 +1,89 @@
+class ProductFacets {
+  static const categories = <String, String>{
+    'Leche': 'leche', 'Café': 'cafe', 'Manteca': 'manteca',
+    'Aceite': 'aceite', 'Yogur': 'yogur', 'Queso': 'queso',
+    'Crema': 'crema', 'Azúcar': 'azucar', 'Arroz': 'arroz',
+    'Fideos': 'fideos',
+  };
+
+  static String normalize(String value) => value
+      .toLowerCase().replaceAll('á', 'a').replaceAll('é', 'e')
+      .replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u')
+      .replaceAll('ü', 'u');
+
+  static Map<String, String> extract(String category, String value) {
+    final text = normalize(value);
+    final result = <String, String>{};
+    void match(String facet, Map<String, String> patterns) {
+      for (final entry in patterns.entries) {
+        if (RegExp(entry.key).hasMatch(text)) {
+          result[facet] = entry.value;
+          return;
+        }
+      }
+    }
+
+    if (category == 'Leche') {
+      match('Tipo', {
+        r'\bsin lactosa\b': 'Sin lactosa',
+        r'\bsemidescremada\b': 'Semidescremada',
+        r'\bdescremada\b': 'Descremada',
+        r'\bentera\b': 'Entera',
+        r'\ben polvo\b|\bpolvo\b': 'En polvo',
+        r'\bchocolatada\b|\bsaborizada\b': 'Saborizada',
+      });
+      match('Presentación', {
+        r'\bsachet\b': 'Sachet',
+        r'\blarga vida\b|\btetra\b|\btetrabrik\b': 'Larga vida / Tetra',
+        r'\bbotella\b': 'Botella',
+        r'\bcaja\b': 'Caja',
+      });
+    } else if (category == 'Café') {
+      match('Preparación', {
+        r'\binstantaneo\b|\bsoluble\b': 'Instantáneo',
+        r'\bmolido\b': 'Molido',
+        r'\bgrano\b|\bgranos\b': 'En grano',
+      });
+      match('Proceso', {
+        r'\btorrado\b': 'Torrado',
+        r'\btostado\b': 'Tostado',
+      });
+    } else if (category == 'Manteca') {
+      match('Variante', {
+        r'\bsin sal\b': 'Sin sal',
+        r'\bcon sal\b': 'Con sal',
+      });
+    }
+
+    final size = RegExp(r'\b(\d+(?:[.,]\d+)?)\s?(kg|g|gr|ml|l|lt)\b')
+        .firstMatch(text);
+    if (size != null) {
+      result['Contenido'] = '\${size.group(1)} \${size.group(2)}';
+    }
+    return result;
+  }
+
+  static Map<String, List<String>> available(
+    String category, Iterable<String> productNames,
+  ) {
+    final values = <String, Set<String>>{};
+    for (final name in productNames) {
+      for (final entry in extract(category, name).entries) {
+        values.putIfAbsent(entry.key, () => <String>{}).add(entry.value);
+      }
+    }
+    return values.map((key, set) {
+      final sorted = set.toList()..sort();
+      return MapEntry(key, sorted);
+    });
+  }
+
+  static bool matches(String category, String productName,
+      Map<String, String> selected) {
+    if (selected.isEmpty) return true;
+    final attributes = extract(category, productName);
+    return selected.entries.every(
+      (entry) => attributes[entry.key] == entry.value,
+    );
+  }
+}
