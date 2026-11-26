@@ -221,7 +221,7 @@ class ProductFacets {
   static String? categoryForQuery(String query) {
     final normalized = normalize(query).trim();
     for (final entry in categories.entries) {
-      if (normalized == normalize(entry.value) || normalized == normalize(entry.key)) return entry.key;
+      if (normalized == normalize(entry.value) || normalized == normalize(entry.key) || normalized.startsWith('${normalize(entry.value)} ') || normalized.startsWith('${normalize(entry.key)} ')) return entry.key;
     }
     return null;
   }
