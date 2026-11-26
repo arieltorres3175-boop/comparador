@@ -218,6 +218,46 @@ class ProductFacets {
     });
   }
 
+  static String? categoryForQuery(String query) {
+    final normalized = normalize(query).trim();
+    for (final entry in categories.entries) {
+      if (normalized == normalize(entry.value) || normalized == normalize(entry.key)) return entry.key;
+    }
+    return null;
+  }
+
+  static String? categoryForQuery(String query) {
+    final normalized = normalize(query).trim();
+    for (final entry in categories.entries) {
+      if (normalized == normalize(entry.value) || normalized == normalize(entry.key)) return entry.key;
+    }
+    return null;
+  }
+
+  // Opciones de selección previas a la consulta; no implican disponibilidad en tiendas.
+  static Map<String, List<String>> initialOptions(String category) {
+    const options = <String, Map<String, List<String>>>{
+      'Leche': {
+        'Tipo': ['Entera', 'Descremada', 'Semidescremada', 'Sin lactosa', 'En polvo', 'Infantil', 'Saborizada'],
+        'Presentación': ['Sachet', 'Larga vida / Tetra', 'Botella', 'Caja'],
+      },
+      'Café': {
+        'Preparación': ['Torrado', 'Tostado', 'Instantáneo', 'Molido', 'En grano'],
+        'Presentación': ['Frasco', 'Saquitos', 'Cápsulas', 'Paquete', 'Doypack'],
+      },
+      'Gaseosas': {
+        'Tipo': ['Regular', 'Sin azúcar / Zero', 'Light'],
+        'Envase': ['Botella', 'Lata', 'Retornable', 'Descartable'],
+      },
+      'Atún': {'Preparación': ['Al natural', 'En aceite', 'En agua'], 'Presentación': ['Lomitos', 'Desmenuzado', 'Trozos']},
+      'Paté': {'Variedad': ['Jamón', 'Cerdo', 'Hígado', 'Ave']},
+      'Yogur': {'Tipo': ['Griego', 'Bebible', 'Firme', 'Descremado', 'Entero', 'Sin lactosa'], 'Sabor': ['Frutilla', 'Vainilla', 'Durazno', 'Natural']},
+      'Crema': {'Tipo': ['Para cocinar', 'Para batir', 'Liviana', 'Doble']},
+      'Manteca': {'Variante': ['Con sal', 'Sin sal'], 'Presentación': ['Pote', 'Pan', 'Envoltorio', 'Pack']},
+    };
+    return options[category] ?? const {};
+  }
+
   static bool matches(
     String category,
     String productName,
