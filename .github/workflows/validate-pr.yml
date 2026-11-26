@@ -34,6 +34,9 @@ jobs:
       - name: Instalar dependencias
         run: flutter pub get
 
+      - name: Probar aplicación Flutter
+        run: flutter test
+
       - name: Probar API de catálogos
         run: cd worker && npm test
 
