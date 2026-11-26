@@ -666,45 +666,15 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
             const SizedBox(height: 10),
-            DropdownButton<String>(value: sortMode, underline: const SizedBox.shrink(), items: const [
-              DropdownMenuItem(value: 'price', child: Text('Menor precio primero')),
-              DropdownMenuItem(value: 'brand', child: Text('Ordenar por marca')),
-            ], onChanged: (value) => setState(() => sortMode = value ?? 'price')),
-            const SizedBox(height: 8),
-                DropdownButton<String>(
-                  value: sortMode,
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'price',
-                      child: Text('Menor precio primero'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'brand',
-                      child: Text('Ordenar por marca'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => sortMode = value ?? 'price'),
-                ),
+            DropdownButton<String>(
+              value: sortMode,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(value: 'price', child: Text('Menor precio primero')),
+                DropdownMenuItem(value: 'brand', child: Text('Ordenar por marca')),
               ],
+              onChanged: (value) => setState(() => sortMode = value ?? 'price'),
             ),
-            if (selectedBrand != null || selectedFacets.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: searching
-                      ? null
-                      : () => _performSearch(
-                            catalogQuery: _queryForSelectedFilters(),
-                            keepDiscovery: true,
-                          ),
-                  icon: const Icon(Icons.filter_alt),
-                  label: const Text('Buscar con estos filtros en los supermercados'),
-                ),
-              ),
-            ],
             const SizedBox(height: 8),
             if (_visibleProducts.isEmpty)
               const Text('No hay productos con esos filtros.')
