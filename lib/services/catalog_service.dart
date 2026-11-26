@@ -350,7 +350,7 @@ class CatalogService {
         StoreStatus(
           store: store.name,
           ok: true,
-          status: response.statusCode,
+          status: lastStatus,
         ),
         offers,
       );
