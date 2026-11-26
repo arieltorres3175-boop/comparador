@@ -42,7 +42,7 @@ jobs:
         run: flutter pub get
 
       - name: Compilar aplicación web
-        run: flutter build web --release --base-href /comparador/
+        run: flutter build web --release --base-href /comparador/ --dart-define=COMPARADOR_API_BASE_URL=${{ vars.COMPARADOR_API_BASE_URL }}
 
       - name: Preparar GitHub Pages
         uses: actions/configure-pages@v5
