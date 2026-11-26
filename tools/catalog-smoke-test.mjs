@@ -86,6 +86,7 @@ async function checkStore(store) {
         price: offer?.Price ?? offer?.price ?? null,
         listPrice: offer?.ListPrice ?? offer?.listPrice ?? null,
         availableQuantity: offer?.AvailableQuantity ?? offer?.availableQuantity ?? null,
+        image: item?.images?.[0]?.imageUrl ?? null,
         productUrl: product.link ?? null,
       };
     });
