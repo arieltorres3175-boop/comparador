@@ -96,7 +96,7 @@ void main() {
     service.close();
   });
 
-  test('una búsqueda genérica devuelve varias opciones con carga inicial acotada', () async {
+  test('una búsqueda genérica devuelve varias opciones', () async {
     final requestedRanges = <String>[];
     final client = MockClient((request) async {
       if (request.url.host == 'www.cotodigital.com.ar') {
@@ -299,7 +299,7 @@ void main() {
     service.close();
   });
 
-  test('recorre páginas del catálogo VTEX para no limitarse a los primeros 50', () async {
+  test('recorre todas las páginas del catálogo VTEX hasta el final', () async {
     final offsetsByStore = <String, List<String>>{};
     final client = MockClient((request) async {
       if (request.url.host == 'www.cotodigital.com.ar') {
@@ -337,7 +337,7 @@ void main() {
 
     expect(result.products, hasLength(51));
     expect(offsetsByStore, hasLength(6));
-    expect(offsetsByStore.values.every((offsets) => offsets.join(',') == '0,50'), isTrue);
+    expect(offsetsByStore.values.every((offsets) => offsets.join(',') == '0,50,100'), isTrue);
 
     service.close();
   });
