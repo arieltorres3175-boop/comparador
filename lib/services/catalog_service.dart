@@ -283,7 +283,7 @@ class CatalogService {
       throw Exception('Falta configurar el servicio de catálogos.');
     }
 
-    final isBarcode = RegExp(r'^\\d{8,14}$').hasMatch(query);
+    final isBarcode = RegExp(r'^\d{8,14}$').hasMatch(query);
     final results = <_StoreSearch>[];
     var cotoQuery = query;
 
