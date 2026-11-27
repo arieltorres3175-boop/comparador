@@ -898,7 +898,7 @@ class _HomePageState extends State<HomePage> {
             ...result.stores.where((status) => !status.ok).map((status) =>
                 Text(
                   '${status.store}: ${status.error ?? 'sin respuesta'}'
-                  '\${status.status == null ? '' : ' (HTTP ${status.status})'}',
+                  '${status.status == null ? '' : ' (HTTP ${status.status})'}',
                   style: const TextStyle(fontSize: 12, color: Colors.red),
                 )),
           ],
