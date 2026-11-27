@@ -1,0 +1,81 @@
+name: validar-mvp-comparador
+
+on:
+  push:
+    branches:
+      - feat/buscador-supermercados-mvp
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'test/**'
+      - 'worker/**'
+      - '.github/workflows/validate-pr.yml'
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'test/**'
+      - 'worker/**'
+      - '.github/workflows/validate-pr.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Preparar plataformas Android y Web
+        run: flutter create . --platforms=android,web
+
+      - name: Verificar permiso de Internet en Android RELEASE
+        run: grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Probar aplicación Flutter
+        run: flutter test
+
+      - name: Probar API de catálogos
+        run: cd worker && npm test
+
+      - name: Analizar código
+        run: flutter analyze --no-fatal-infos
+
+      - name: Verificar intermediario de catálogos para Android
+        env:
+          COMPARADOR_API_BASE_URL: ${{ vars.COMPARADOR_API_BASE_URL }}
+        run: |
+          if [ -z "$COMPARADOR_API_BASE_URL" ]; then
+            echo "::error::Falta configurar la variable de repositorio COMPARADOR_API_BASE_URL con la URL del Worker desplegado."
+            exit 1
+          fi
+
+      - name: Compilar APK
+        run: flutter build apk --release --dart-define=COMPARADOR_API_BASE_URL=${{ vars.COMPARADOR_API_BASE_URL }}
+
+      - name: Compilar versión web
+        run: flutter build web --release --base-href /comparador/ --dart-define=COMPARADOR_API_BASE_URL=${{ vars.COMPARADOR_API_BASE_URL }}
+
+      - name: Guardar APK de validación
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparador-mvp-apk-validacion
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

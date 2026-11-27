@@ -1,43 +1,27 @@
-
-name: actualizar-indice-precios-sepa
+name: generar-indice-precios-sepa
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 20 * * *"
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  actualizar:
+  generar:
     runs-on: ubuntu-latest
-
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
-
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Generar índice de precios
         run: node tools-build-index.mjs
-
-      - name: Preparar GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Subir índice generado
-        uses: actions/upload-pages-artifact@v3
+      - name: Guardar índice como artefacto (no publicar sobre GitHub Pages)
+        uses: actions/upload-artifact@v4
         with:
+          name: indice-precios-sepa
           path: public
-
-      - name: Publicar índice
-        uses: actions/deploy-pages@v4
+          if-no-files-found: error
+          retention-days: 14

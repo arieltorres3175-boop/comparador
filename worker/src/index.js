@@ -1,0 +1,333 @@
+const STORES = [
+  { name: 'Jumbo', domain: 'www.jumbo.com.ar' },
+  { name: 'Disco', domain: 'www.disco.com.ar' },
+  { name: 'Vea', domain: 'www.vea.com.ar' },
+  { name: 'Carrefour', domain: 'www.carrefour.com.ar' },
+  { name: 'DIA', domain: 'diaonline.supermercadosdia.com.ar' },
+  { name: 'ChangoMás', domain: 'www.masonline.com.ar' },
+];
+
+const COTO_SEARCH = 'https://www.cotodigital.com.ar/sitios/cdigi/categoria';
+
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, OPTIONS',
+      'access-control-allow-headers': 'Content-Type',
+      'cache-control': 'public, max-age=60',
+      ...extraHeaders,
+    },
+  });
+}
+
+function parsePrice(value) {
+  if (value == null) return null;
+  let raw = String(value).trim().replace(/[^0-9,.-]/g, '');
+  if (raw.includes(',') && raw.includes('.')) {
+    if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else {
+      raw = raw.replace(/,/g, '');
+    }
+  } else if (raw.includes(',')) {
+    if (/^\d{1,3}(,\d{3})+$/.test(raw)) {
+      raw = raw.replace(/,/g, '');
+    } else {
+      raw = raw.replace(',', '.');
+    }
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
+    raw = raw.replace(/\./g, '');
+  }
+  const result = Number(raw);
+  return Number.isFinite(result) && result > 0 ? result : null;
+}
+
+function vtexProducts(products, store, domain) {
+  const offers = [];
+  for (const product of Array.isArray(products) ? products : []) {
+    for (const item of product.items ?? []) {
+      const sellers = (item.sellers ?? [])
+        .map((seller) => seller.commertialOffer ?? seller.commercialOffer)
+        .filter(Boolean)
+        .filter((offer) => parsePrice(offer.Price ?? offer.price) != null)
+        .sort((a, b) =>
+          (parsePrice(a.Price ?? a.price) ?? Infinity) -
+          (parsePrice(b.Price ?? b.price) ?? Infinity));
+      const offer = sellers[0];
+      if (!offer) continue;
+      const ean = String(item.ean ?? '').trim() || null;
+      const productUrl = product.link
+        ? new URL(product.link, `https://${domain}`).toString()
+        : null;
+      offers.push({
+        store,
+        ean,
+        name: product.productName ?? item.name ?? 'Producto sin nombre',
+        brand: product.brand ?? null,
+        variant: item.name ?? null,
+        price: parsePrice(offer.Price ?? offer.price),
+        listPrice: parsePrice(offer.ListPrice ?? offer.listPrice),
+        stock: offer.AvailableQuantity == null && offer.availableQuantity == null
+          ? null
+          : Number(offer.AvailableQuantity ?? offer.availableQuantity),
+        image: item.images?.[0]?.imageUrl ?? null,
+        url: productUrl,
+        priceType: 'online_default_channel',
+      });
+    }
+  }
+  return offers;
+}
+
+function cotoProducts(data) {
+  const resultGroups = data?.contents?.[0]?.Main?.[2]?.contents ?? [];
+  const records = resultGroups.flatMap((group) => group?.records ?? []);
+  return records.flatMap((record) => {
+    const attrs = record?.records?.[0]?.attributes ?? {};
+    const value = (key) => attrs[key]?.[0] ?? null;
+    const price = parsePrice(value('sku.activePrice'));
+    const ean = String(value('product.eanPrincipal') ?? '').trim() || null;
+    if (!price) return [];
+    const state = record?.records?.[0]?.detailsAction?.recordState ?? '';
+    let url = null;
+    if (state) {
+      url = `https://www.cotodigital.com.ar/sitios/cdigi/productos${state.split('?')[0]}`;
+    }
+    let promotions = [];
+    try {
+      const raw = value('product.dtoDescuentos');
+      if (raw) promotions = JSON.parse(raw).map((item) => ({
+        text: item.textoDescuento ?? null,
+        price: parsePrice(String(item.precioDescuento ?? '').replace('c/u', '')),
+        restriction: String(item.imagenDescuento ?? '').includes('comunidad')
+          ? 'Exclusivo Comunidad Coto'
+          : null,
+      }));
+    } catch {
+      promotions = [];
+    }
+    return [{
+      store: 'Coto',
+      ean,
+      name: value('sku.displayName') ?? 'Producto sin nombre',
+      brand: value('product.brand') ?? value('product.brandName'),
+      variant: value('sku.displayName') ?? null,
+      price,
+      listPrice: parsePrice(value('sku.listPrice')),
+      stock: null,
+      image: value('product.largeImage.url'),
+      url,
+      priceType: 'online_branch_200',
+      branchLabel: 'Sucursal de referencia 200',
+      promotions,
+    }];
+  });
+}
+
+function groupByExactEan(offers) {
+  const groups = new Map();
+  for (const offer of offers) {
+    // Only identical, non-empty EANs are grouped across stores.
+    const key = offer.ean
+      ? `ean:${offer.ean}`
+      : `unmatched:${offer.store}:${offer.name}:${offer.variant ?? ''}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ean: offer.ean,
+        name: offer.name,
+        brand: offer.brand,
+        comparableByEan: Boolean(offer.ean),
+        offers: [],
+      });
+    }
+    groups.get(key).offers.push(offer);
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    offers: group.offers.sort((a, b) => a.price - b.price),
+  })).sort((a, b) => {
+    const aMin = Math.min(...a.offers.map((offer) => offer.price));
+    const bMin = Math.min(...b.offers.map((offer) => offer.price));
+    return aMin - bMin;
+  });
+}
+
+async function searchVtex(store, query, limit) {
+  const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
+  url.searchParams.set('ft', query);
+  try {
+    const allProducts = [];
+    let status = 200;
+    // The request contains the user's selected product criteria; continue paging
+    // until the matching result set is exhausted or the safety cap is reached.
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
+      url.searchParams.set('_from', String(offset));
+      url.searchParams.set('_to', String(offset + limit - 1));
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+          'user-agent': 'ComparadorInteligente/0.1 (public product search)',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      status = response.status;
+      if (!response.ok) {
+        return { store: store.name, ok: false, status: response.status, offers: [] };
+      }
+      const products = await response.json();
+      if (!Array.isArray(products)) {
+        return { store: store.name, ok: false, status: response.status, error: 'Formato de catálogo inesperado', offers: [] };
+      }
+      allProducts.push(...products);
+      if (products.length < limit) break;
+    }
+    return {
+      store: store.name,
+      ok: true,
+      status,
+      offers: vtexProducts(allProducts, store.name, store.domain),
+    };
+  } catch (error) {
+    return {
+      store: store.name,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      offers: [],
+    };
+  }
+}
+
+async function searchCoto(query, limit) {
+  const url = new URL(COTO_SEARCH);
+  url.searchParams.set('_dyncharset', 'utf8');
+  url.searchParams.set('Dy', '1');
+  url.searchParams.set('Nrpp', String(limit));
+  url.searchParams.set('Ntt', query);
+  url.searchParams.set('idSucursal', '200');
+  url.searchParams.set('format', 'json');
+  try {
+    const allRecords = [];
+    let status = 200;
+    // Coto's Endeca API paginates with No/Nrpp; use the same bounded coverage.
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
+      url.searchParams.set('No', String(offset));
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+          referer: 'https://www.cotodigital.com.ar/',
+          'user-agent': 'Mozilla/5.0 (compatible; ComparadorInteligente/0.1)',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      status = response.status;
+      if (!response.ok) {
+        return { store: 'Coto', ok: false, status: response.status, offers: [] };
+      }
+      const data = await response.json();
+      const groups = data?.contents?.[0]?.Main?.[2]?.contents ?? [];
+      const records = groups.flatMap((group) => group?.records ?? []);
+      if (records.length === 0) break;
+      allRecords.push(...records);
+      if (records.length < limit) break;
+    }
+    return {
+      store: 'Coto',
+      ok: true,
+      status,
+      offers: cotoProducts({ contents: [{ Main: [null, null, { contents: allRecords.map((record) => ({ records: [record] })) }] }] }),
+    };
+  } catch (error) {
+    return {
+      store: 'Coto',
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      offers: [],
+    };
+  }
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, OPTIONS',
+          'access-control-allow-headers': 'Content-Type',
+          'access-control-max-age': '86400',
+        },
+      });
+    }
+
+    if (url.pathname === '/health') {
+      return json({ ok: true, service: 'comparador-api', version: '0.1.0' });
+    }
+    if (url.pathname !== '/search' || request.method !== 'GET') {
+      return json({ error: 'Usá GET /search?q=producto o GET /health' }, 404);
+    }
+
+    const query = (url.searchParams.get('q') ?? '').trim();
+    if (query.length < 2 || query.length > 80) {
+      return json({ error: 'La búsqueda debe tener entre 2 y 80 caracteres.' }, 400);
+    }
+    const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') ?? 50) || 50));
+
+    const cacheKey = new Request(request.url, { method: 'GET' });
+    const cache = caches.default;
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set('access-control-allow-origin', '*');
+      headers.set('x-comparador-cache', 'HIT');
+      return new Response(cached.body, { status: cached.status, headers });
+    }
+
+    const isBarcode = /^\d{8,14}$/.test(query);
+    const vtexPromise = Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
+    // Text searches query all seven chains concurrently. EAN searches first
+    // resolve the product name from VTEX, then query Coto with that name.
+    const cotoPromise = isBarcode ? null : searchCoto(query, limit);
+    const vtexResults = await vtexPromise;
+    let cotoQuery = query;
+    if (isBarcode) {
+      const matchedVtexProduct = vtexResults
+        .flatMap((result) => result.offers)
+        .find((offer) => offer.ean === query);
+      if (matchedVtexProduct?.name) cotoQuery = matchedVtexProduct.name;
+    }
+    const cotoResult = isBarcode
+      ? await searchCoto(cotoQuery, limit)
+      : await cotoPromise;
+    const storeResults = [...vtexResults, cotoResult];
+    let offers = storeResults.flatMap((result) => result.offers);
+    if (!isBarcode) {
+      const terms = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      offers = offers.filter((offer) => {
+        const words = [offer.name, offer.brand ?? '', offer.variant ?? '']
+          .join(' ')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        if (!terms.every((term) => words.includes(term))) return false;
+        if (terms.length === 1 && terms[0] === 'leche' &&
+            words[0] === 'dulce' && words[1] === 'de') return false;
+        return true;
+      });
+    }
+    const responseBody = {
+      query,
+      generatedAt: new Date().toISOString(),
+      note: 'Precios publicados en catálogos online. La sucursal, canal de venta, stock y promociones pueden variar. Los productos solo se agrupan como iguales cuando coincide el EAN.',
+      stores: storeResults.map(({ offers: _offers, ...store }) => store),
+      products: groupByExactEan(offers),
+    };
+    const response = json(responseBody, 200, { 'x-comparador-cache': 'MISS' });
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  },
+};
