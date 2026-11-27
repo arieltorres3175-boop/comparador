@@ -315,6 +315,7 @@ const report = {
   verificationEan,
   note: 'Diagnostic only. Results are not yet used as consumer prices.',
   results,
+  paginationResults,
   coto,
   exactEanResults,
 };
