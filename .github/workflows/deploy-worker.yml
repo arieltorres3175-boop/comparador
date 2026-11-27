@@ -10,8 +10,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar repositorio
+      - name: Descargar código de la rama del Worker
         uses: actions/checkout@v4
+        with:
+          ref: feat/buscador-supermercados-mvp
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
