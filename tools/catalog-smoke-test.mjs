@@ -293,7 +293,8 @@ for (const store of stores) {
   paginationResults.push(await checkVtexPagination(store));
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
-\nconst results = [];
+
+const results = [];
 for (const store of stores) {
   results.push(await checkStore(store));
   // Keep requests sequential and gentle: one small query per retailer.
