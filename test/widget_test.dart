@@ -36,10 +36,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Precisá Leche'), findsOneWidget);
-    expect(find.text('Marca'), findsOneWidget);
-    expect(find.text('Tipo o variedad'), findsOneWidget);
-    expect(find.text('Envase o presentación'), findsOneWidget);
-    expect(find.text('Contenido'), findsOneWidget);
+    // Check the actual TextField configuration rather than rendered label
+    // text, which may float or be outside the viewport in widget tests.
+    for (final label in [
+      'Marca',
+      'Tipo o variedad',
+      'Envase o presentación',
+      'Contenido',
+    ]) {
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is TextField &&
+              widget.decoration.labelText == label,
+        ),
+        findsOneWidget,
+        reason: 'Debe existir el criterio "$label" antes de consultar tiendas.',
+      );
+    }
     expect(find.textContaining('Primero consultamos los supermercados'), findsNothing);
     expect(find.text('Buscar en los supermercados'), findsOneWidget);
   });
