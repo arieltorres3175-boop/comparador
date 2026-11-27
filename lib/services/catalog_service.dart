@@ -187,6 +187,7 @@ class CatalogService {
     String rawQuery, {
     int limit = 20,
     String? catalogQuery,
+    void Function(CatalogSearchResult result)? onProgress,
   }) async {
     limit = limit.clamp(1, 50).toInt();
     final query = rawQuery.trim();
@@ -198,7 +199,7 @@ class CatalogService {
     if (_workerApiBase.trim().isNotEmpty) {
       // Use the server-side catalog proxy on Android and Web. Retailer APIs
       // can reject direct mobile requests even when they work server-side.
-      final workerResult = await _searchThroughWorker(sourceQuery, limit);
+      final workerResult = await _searchThroughWorker(sourceQuery, limit, onProgress: onProgress);
       if (RegExp(r'^\d{8,14}$').hasMatch(sourceQuery)) {
         return CatalogSearchResult(
           query: query,
@@ -274,24 +275,108 @@ class CatalogService {
 
   Future<CatalogSearchResult> _searchThroughWorker(
     String query,
-    int limit,
-  ) async {
+    int limit, {
+    void Function(CatalogSearchResult result)? onProgress,
+  }) async {
     final base = _workerApiBase.trim().replaceFirst(RegExp(r'/+$'), '');
     if (base.isEmpty) {
-      throw Exception(
-        'La búsqueda web necesita configurar el servicio gratuito de catálogos. '
-        'En Android la consulta se realiza directamente a los supermercados.',
+      throw Exception('Falta configurar el servicio de catálogos.');
+    }
+
+    final isBarcode = RegExp(r'^\\d{8,14}$').hasMatch(query);
+    final results = <_StoreSearch>[];
+    var cotoQuery = query;
+
+    Future<_StoreSearch> requestStore(String storeName, String storeQuery) async {
+      StoreStatus? lastStatus;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          final uri = Uri.parse('$base/search').replace(
+            queryParameters: {
+              'q': storeQuery,
+              'store': storeName,
+              'limit': '$limit',
+            },
+          );
+          final response = await _client.get(uri).timeout(
+            const Duration(seconds: 25),
+          );
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            lastStatus = StoreStatus(
+              store: storeName,
+              ok: false,
+              status: response.statusCode,
+              error: 'El servicio respondió HTTP ${response.statusCode}.',
+            );
+          } else {
+            final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+            final statuses = (decoded['stores'] as List<dynamic>? ?? [])
+                .whereType<Map<String, dynamic>>()
+                .map(StoreStatus.fromJson)
+                .toList();
+            lastStatus = statuses.isEmpty
+                ? StoreStatus(
+                    store: storeName,
+                    ok: false,
+                    error: 'El servicio no informó el estado del supermercado.',
+                  )
+                : statuses.first;
+            if (lastStatus.ok) {
+              final products = (decoded['products'] as List<dynamic>? ?? [])
+                  .whereType<Map<String, dynamic>>()
+                  .map(CatalogProduct.fromJson)
+                  .toList();
+              final offers = products.expand((product) => product.offers).toList();
+              return _StoreSearch(lastStatus, offers);
+            }
+          }
+        } catch (error) {
+          lastStatus = StoreStatus(
+            store: storeName,
+            ok: false,
+            error: error.toString().replaceFirst('Exception: ', ''),
+          );
+        }
+        // Only failed stores are retried; successful empty results are final.
+        if (attempt < 2) {
+          await Future<void>.delayed(
+            Duration(milliseconds: attempt == 0 ? 400 : 900),
+          );
+        }
+      }
+      return _StoreSearch(
+        lastStatus ?? StoreStatus(
+          store: storeName,
+          ok: false,
+          error: 'No hubo respuesta del supermercado.',
+        ),
+        const [],
       );
     }
-    final uri = Uri.parse('$base/search').replace(
-      queryParameters: {'q': query, 'limit': '$limit'},
-    );
-    final response = await _client.get(uri);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('El servicio de búsqueda respondió HTTP ${response.statusCode}.');
+
+    void publishProgress() {
+      if (onProgress != null) {
+        onProgress(_groupResults(query, List<_StoreSearch>.unmodifiable(results)));
+      }
     }
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    return CatalogSearchResult.fromJson(decoded);
+
+    // Each request is a separate Worker invocation, so its ten-page search
+    // cannot consume another supermarket's Cloudflare subrequest allowance.
+    for (final store in _vtexStores) {
+      final result = await requestStore(store.name, query);
+      results.add(result);
+      if (isBarcode && cotoQuery == query) {
+        final match = result.offers.where((offer) => offer.ean == query);
+        if (match.isNotEmpty) cotoQuery = match.first.name;
+      }
+      publishProgress();
+    }
+
+    final cotoResult = await requestStore('Coto', cotoQuery);
+    results.add(cotoResult);
+    publishProgress();
+
+    return _groupResults(query, results);
   }
 
   Future<_StoreSearch> _searchVtex(
