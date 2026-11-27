@@ -183,12 +183,18 @@ class _HomePageState extends State<HomePage> {
         return categoryMatch && brandMatch && facetMatch;
       }).toList();
       if (matchingOffers.isEmpty) continue;
+      // If one store confirms an exact EAN match, keep every store offer for
+      // that same barcode even when another retailer formats its title
+      // differently (for example, omitting "botella" or "1 L").
+      final visibleOffers = product.comparableByEan
+          ? product.offers
+          : matchingOffers;
       products.add(CatalogProduct(
         name: product.name,
         ean: product.ean,
         brand: product.brand,
         comparableByEan: product.comparableByEan,
-        offers: matchingOffers,
+        offers: visibleOffers,
       ));
     }
     if (sortMode == 'brand') {
