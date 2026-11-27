@@ -46,7 +46,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Inspect the TextField configuration; decoration is nullable in Flutter.
+    // Inspect the dropdown configuration.
     for (final label in [
       'Marca',
       'Tipo o variedad',
