@@ -104,6 +104,8 @@ class _HomePageState extends State<HomePage> {
   int page = 0;
   bool loading = true;
   bool searching = false;
+  bool loadingDiscovery = false;
+  String? discoveryError;
   String? message;
   String? searchError;
   String? selectedBrand;
@@ -205,6 +207,126 @@ class _HomePageState extends State<HomePage> {
       searchResult = null;
       discoveryResult = null;
       searchError = null;
+    });
+  }
+
+  Future<void> _loadCategoryDiscovery(String category) async {
+    if (loadingDiscovery) return;
+    setState(() {
+      loadingDiscovery = true;
+      discoveryError = null;
+      discoveryResult = null;
+      selectedBrand = null;
+      selectedFacets.clear();
+    });
+    try {
+      // One category discovery per selection; the returned catalog records
+      // are reused to populate all dependent dropdowns.
+      final result = await catalogService.search(
+        ProductFacets.categories[category]!,
+        limit: 50,
+      );
+      if (!mounted || selectedCategory != category) return;
+      setState(() => discoveryResult = result);
+    } catch (error) {
+      if (!mounted || selectedCategory != category) return;
+      setState(() => discoveryError =
+          error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => loadingDiscovery = false);
+    }
+  }
+
+  List<String> get _availableBrandOptions {
+    final values = <String>{};
+    for (final product in discoveryResult?.products ?? const <CatalogProduct>[]) {
+      final brand = (product.brand ??
+              product.offers.map((offer) => offer.brand).firstWhere(
+                    (value) => value != null && value.trim().isNotEmpty,
+                    orElse: () => null,
+                  ))
+          ?.trim();
+      if (brand != null && brand.isNotEmpty) values.add(brand);
+    }
+    final result = values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return result;
+  }
+
+  List<CatalogProduct> get _productsForSelectedBrand {
+    if (selectedBrand == null) return const [];
+    final target = ProductFacets.normalize(selectedBrand!);
+    return (discoveryResult?.products ?? const <CatalogProduct>[]).where((product) {
+      final brands = [
+        product.brand ?? '',
+        ...product.offers.map((offer) => offer.brand ?? ''),
+      ].map(ProductFacets.normalize);
+      return brands.any((brand) => brand == target);
+    }).toList();
+  }
+
+  Map<String, List<String>> get _brandFacetOptions {
+    if (selectedCategory == null || selectedBrand == null) return const {};
+    return ProductFacets.available(
+      selectedCategory!,
+      _productsForSelectedBrand.map((product) => product.name),
+    );
+  }
+
+  String? _selectedFacetValue(Set<String> keys) {
+    for (final key in keys) {
+      if (selectedFacets.containsKey(key)) return selectedFacets[key];
+    }
+    return null;
+  }
+
+  Widget _catalogDropdown({
+    required String label,
+    required List<String> options,
+    required String? value,
+    required ValueChanged<String?>? onChanged,
+    String? hint,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      hint: Text(hint ?? 'Seleccioná una opción'),
+      items: options
+          .map((option) => DropdownMenuItem<String>(
+                value: option,
+                child: Text(option, overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      onChanged: options.isEmpty ? null : onChanged,
+    );
+  }
+
+  void _selectFacetGroup(Set<String> keys, String? value) {
+    setState(() {
+      for (final key in keys) {
+        selectedFacets.remove(key);
+      }
+      if (value != null) {
+        for (final entry in _brandFacetOptions.entries) {
+          if (keys.contains(entry.key) && entry.value.contains(value)) {
+            selectedFacets[entry.key] = value;
+            break;
+          }
+        }
+      }
+      variantFilterController.text = [
+        _selectedFacetValue({'Tipo', 'Variedad', 'Preparación', 'Proceso', 'Sabor', 'Variante'}),
+      ].whereType<String>().join(' ');
+      packageFilterController.text = [
+        _selectedFacetValue({'Envase', 'Presentación'}),
+      ].whereType<String>().join(' ');
+      sizeFilterController.text = _selectedFacetValue({'Contenido'}) ?? '';
     });
   }
 
@@ -539,7 +661,10 @@ class _HomePageState extends State<HomePage> {
                     searchController.text = selected
                         ? ProductFacets.categories[category]!
                         : '';
+                    loadingDiscovery = false;
+                    discoveryError = null;
                   });
+                  if (selected) _loadCategoryDiscovery(category);
                 },
               )).toList(),
         ),
@@ -596,28 +721,59 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 10),
-          _searchCriterionField(
-            controller: brandFilterController,
+          if (loadingDiscovery)
+            const LinearProgressIndicator(),
+          if (discoveryError != null)
+            Text(
+              'No pudimos cargar las opciones del catálogo: $discoveryError',
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          _catalogDropdown(
             label: 'Marca',
-            hint: 'Ej. La Serenísima, Cabrales, Arcor',
+            options: _availableBrandOptions,
+            value: selectedBrand,
+            hint: loadingDiscovery ? 'Cargando marcas...' : 'Elegí una marca',
+            onChanged: (value) {
+              setState(() {
+                selectedBrand = value;
+                selectedFacets.clear();
+                brandFilterController.text = value ?? '';
+                variantFilterController.clear();
+                packageFilterController.clear();
+                sizeFilterController.clear();
+              });
+            },
           ),
           const SizedBox(height: 8),
-          _searchCriterionField(
-            controller: variantFilterController,
+          _catalogDropdown(
             label: 'Tipo o variedad',
-            hint: 'Ej. parcialmente descremada, molido, sin azúcar',
+            options: _brandFacetOptions.entries
+                .where((entry) => {'Tipo', 'Variedad', 'Preparación', 'Proceso', 'Sabor', 'Variante'}.contains(entry.key))
+                .expand((entry) => entry.value)
+                .toSet().toList()..sort(),
+            value: _selectedFacetValue({'Tipo', 'Variedad', 'Preparación', 'Proceso', 'Sabor', 'Variante'}),
+            hint: selectedBrand == null ? 'Primero elegí una marca' : 'Elegí el tipo o variedad',
+            onChanged: selectedBrand == null ? null : (value) => _selectFacetGroup(
+              {'Tipo', 'Variedad', 'Preparación', 'Proceso', 'Sabor', 'Variante'}, value),
           ),
           const SizedBox(height: 8),
-          _searchCriterionField(
-            controller: packageFilterController,
+          _catalogDropdown(
             label: 'Envase o presentación',
-            hint: 'Ej. caja de cartón, botella, frasco, paquete',
+            options: _brandFacetOptions.entries
+                .where((entry) => {'Envase', 'Presentación'}.contains(entry.key))
+                .expand((entry) => entry.value)
+                .toSet().toList()..sort(),
+            value: _selectedFacetValue({'Envase', 'Presentación'}),
+            hint: selectedBrand == null ? 'Primero elegí una marca' : 'Elegí la presentación',
+            onChanged: selectedBrand == null ? null : (value) => _selectFacetGroup({'Envase', 'Presentación'}, value),
           ),
           const SizedBox(height: 8),
-          _searchCriterionField(
-            controller: sizeFilterController,
+          _catalogDropdown(
             label: 'Contenido',
-            hint: 'Ej. 1 L, 500 g, 250 ml',
+            options: _brandFacetOptions['Contenido'] ?? const [],
+            value: _selectedFacetValue({'Contenido'}),
+            hint: selectedBrand == null ? 'Primero elegí una marca' : 'Elegí el contenido',
+            onChanged: selectedBrand == null ? null : (value) => _selectFacetGroup({'Contenido'}, value),
           ),
         ],
         const SizedBox(height: 12),
