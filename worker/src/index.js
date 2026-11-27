@@ -113,7 +113,7 @@ function cotoProducts(data) {
       store: 'Coto',
       ean,
       name: value('sku.displayName') ?? 'Producto sin nombre',
-      brand: null,
+      brand: value('product.brand') ?? value('product.brandName'),
       variant: value('sku.displayName') ?? null,
       price,
       listPrice: parsePrice(value('sku.listPrice')),
