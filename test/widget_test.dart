@@ -33,7 +33,7 @@ void main() {
     await tester.ensureVisible(lecheChip);
     await tester.tap(lecheChip);
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Precisá Leche'), findsOneWidget);
     // ListView builds children lazily. Scroll the criteria into the viewport
@@ -55,11 +55,11 @@ void main() {
     ]) {
       expect(
         find.byWidgetPredicate(
-          (widget) => widget is TextField &&
+          (widget) => widget is DropdownButtonFormField<String> &&
               widget.decoration?.labelText == label,
         ),
         findsOneWidget,
-        reason: 'Debe existir el criterio "$label" antes de consultar tiendas.',
+        reason: 'Debe existir el selector "$label" antes de consultar tiendas.',
       );
     }
     expect(find.textContaining('Primero consultamos los supermercados'), findsNothing);
