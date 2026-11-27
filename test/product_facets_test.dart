@@ -54,14 +54,16 @@ void main() {
       expect(facets.values, isNot(contains('Botella')));
     });
 
-    test('solo ofrece marcas detectadas en los productos encontrados', () {
-      final brands = ProductFacets.availableBrands('Leche', [
-        'Leche UAT Sancor 1 L',
-        'Leche entera La Serenísima 1 L',
+    test('solo ofrece atributos presentes en los productos de la marca elegida', () {
+      final options = ProductFacets.available('Leche', [
+        'Leche UAT Sancor Entera Sachet 1 L',
+        'Leche UAT Sancor Descremada Caja Tetra 1 L',
       ]);
 
-      expect(brands, containsAll(['Sancor', 'La Serenísima']));
-      expect(brands, isNot(contains('Milkaut')));
+      expect(options['Tipo'], contains('Larga vida'));
+      expect(options['Variedad'], containsAll(['Entera', 'Descremada']));
+      expect(options['Envase'], containsAll(['Sachet', 'Caja de cartón']));
+      expect(options['Contenido'], ['1 L']);
     });
 
     test('aplica filtros combinados sin confundir variedades', () {
