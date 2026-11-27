@@ -56,7 +56,7 @@ void main() {
       expect(
         find.byWidgetPredicate(
           (widget) => widget is DropdownButtonFormField<String> &&
-              widget.decoration?.labelText == label,
+              widget.decoration.labelText == label,
         ),
         findsOneWidget,
         reason: 'Debe existir el selector "$label" antes de consultar tiendas.',
