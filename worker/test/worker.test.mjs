@@ -98,6 +98,20 @@ test('searches one VTEX retailer and returns only its offers', async () => {
   assert.equal(body.products[0].offers[0].store, 'Jumbo');
 });
 
+test('sends storefront origin and referer headers to VTEX', async () => {
+  let requestHeaders;
+  globalThis.fetch = async (input, options) => {
+    const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
+    assert.equal(url.hostname, 'www.jumbo.com.ar');
+    requestHeaders = options.headers;
+    return new Response(JSON.stringify(vtexResponse(url.hostname)), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const response = await invoke('arroz', 'Jumbo');
+  assert.equal(response.status, 200);
+  assert.equal(requestHeaders.origin, 'https://arieltorres3175-boop.github.io');
+  assert.equal(requestHeaders.referer, 'https://www.jumbo.com.ar/');
+});
+
 test('allows up to ten pages for one VTEX store without fan-out', async () => {
   let requests = 0;
   globalThis.fetch = async (input) => {
