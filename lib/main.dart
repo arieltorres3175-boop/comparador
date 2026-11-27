@@ -870,19 +870,38 @@ class _HomePageState extends State<HomePage> {
             spacing: 6,
             runSpacing: 6,
             children: result.stores
-                .map((status) => Chip(
-                      avatar: Icon(
-                        status.ok ? Icons.check_circle : Icons.error_outline,
-                        size: 16,
-                        color: status.ok
-                            ? Colors.green.shade700
-                            : Colors.red.shade700,
-                      ),
-                      label: Text(status.store),
-                      visualDensity: VisualDensity.compact,
-                    ))
+                .map((status) {
+                  final count = result.products
+                      .expand((product) => product.offers)
+                      .where((offer) => offer.store == status.store)
+                      .length;
+                  return Chip(
+                    avatar: Icon(
+                      status.ok ? Icons.check_circle : Icons.error_outline,
+                      size: 16,
+                      color: status.ok
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                    ),
+                    label: Text('\${status.store}: $count'),
+                    visualDensity: VisualDensity.compact,
+                  );
+                })
                 .toList(),
           ),
+          if (result.stores.any((status) => !status.ok)) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Algunos supermercados no pudieron consultarse:',
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red),
+            ),
+            ...result.stores.where((status) => !status.ok).map((status) =>
+                Text(
+                  '\${status.store}: \${status.error ?? 'sin respuesta'}'
+                  '\${status.status == null ? '' : ' (HTTP \${status.status})'}',
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                )),
+          ],
           if (result.products.isEmpty) ...[
             const SizedBox(height: 16),
             const _Notice(
