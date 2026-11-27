@@ -36,6 +36,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Precisá Leche'), findsOneWidget);
+    // ListView builds children lazily. Scroll the criteria into the viewport
+    // before asserting that their TextFields have been mounted.
+    final searchButton = find.text('Buscar en los supermercados');
+    await tester.scrollUntilVisible(
+      searchButton,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     // Inspect the TextField configuration; decoration is nullable in Flutter.
     for (final label in [
       'Marca',
