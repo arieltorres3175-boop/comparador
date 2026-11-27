@@ -1,6 +1,17 @@
 name: validar-mvp-comparador
 
 on:
+  push:
+    branches:
+      - feat/buscador-supermercados-mvp
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'test/**'
+      - 'worker/**'
+      - '.github/workflows/validate-pr.yml'
   workflow_dispatch:
   pull_request:
     branches:
