@@ -117,7 +117,8 @@ async function checkStore(store) {
 
 
 async function checkVtexPagination(store) {
-  const pageSize = 20;
+  // Match the app's actual catalog request size (limit: 50).
+  const pageSize = 50;
   const pages = [];
   const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
   url.searchParams.set('ft', query);
