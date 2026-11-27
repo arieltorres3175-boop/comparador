@@ -143,7 +143,7 @@ test('parses comma thousands separators as thousands, not decimal fractions', as
 });
 
 
-test('limits the initial catalog discovery to two VTEX pages per store', async () => {
+test('caps a full VTEX search at ten pages per store', async () => {
   const requests = new Map();
   globalThis.fetch = async (input) => {
     const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
@@ -172,5 +172,33 @@ test('limits the initial catalog discovery to two VTEX pages per store', async (
 
   assert.equal(response.status, 200);
   assert.equal(requests.size, 6);
-  assert.ok([...requests.values()].every((count) => count === 2));
+  assert.ok([...requests.values()].every((count) => count === 10));
+});
+
+test('stops VTEX pagination when a page contains fewer results than requested', async () => {
+  const requests = new Map();
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
+    if (url.hostname === 'www.cotodigital.com.ar') {
+      return new Response(JSON.stringify({ contents: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    requests.set(url.hostname, (requests.get(url.hostname) ?? 0) + 1);
+    return new Response(JSON.stringify(vtexResponse(url.hostname)), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  const response = await worker.fetch(
+    new Request('https://comparador-api.example.workers.dev/search?q=arroz&limit=50'),
+    {},
+    { waitUntil: () => {} },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(requests.size, 6);
+  assert.ok([...requests.values()].every((count) => count === 1));
 });
