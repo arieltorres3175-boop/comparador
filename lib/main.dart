@@ -339,9 +339,6 @@ class _HomePageState extends State<HomePage> {
   String get _specificSearchQuery => [
         query,
         brandFilterController.text.trim(),
-        variantFilterController.text.trim(),
-        packageFilterController.text.trim(),
-        sizeFilterController.text.trim(),
       ].where((part) => part.isNotEmpty).join(' ');
 
   Future<void> _performSearch({
