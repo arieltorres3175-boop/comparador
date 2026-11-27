@@ -13,10 +13,11 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 
 ## Cómo se consultan los catálogos
 
-- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX, consultada por páginas de hasta 50 resultados (hasta 5.000 coincidencias por cadena por búsqueda, con corte de seguridad).
-- **Coto:** buscador público de Coto Digital, con paginación y el identificador de sucursal de referencia `200` (hasta 5.000 coincidencias por búsqueda, con corte de seguridad).
-- En Android, la app consulta directamente los catálogos.
-- En la versión web, las APIs VTEX no habilitan CORS para el sitio de GitHub Pages. Para la web se incluye un intermediario Cloudflare Worker en `worker/`.
+- **Jumbo, Disco, Vea, Carrefour, DIA y ChangoMás:** API pública de catálogo VTEX. **Coto:** buscador público de Coto Digital con sucursal de referencia `200`.
+- La app Android y la versión web consultan el intermediario Cloudflare Worker configurado en `COMPARADOR_API_BASE_URL`.
+- La app realiza una solicitud independiente por supermercado. Cada una puede recorrer hasta 10 páginas de 50 resultados; los resultados exitosos se conservan y se muestran progresivamente.
+- Si una tienda falla, se reintenta esa tienda hasta dos veces adicionales. Una búsqueda exitosa sin coincidencias no se reintenta.
+- Separar las invocaciones evita que las consultas de otras cadenas consuman el límite de subsolicitudes de Cloudflare de una misma ejecución.
 
 ## Configuración de la versión web
 
@@ -26,7 +27,7 @@ Aplicación Flutter para comparar productos publicados en supermercados de Argen
 4. Crear la variable `COMPARADOR_API_BASE_URL` con la URL base del Worker, por ejemplo `https://comparador-api.tu-cuenta.workers.dev`.
 5. Volver a ejecutar el workflow de Flutter Web.
 
-Si la variable no está configurada, la búsqueda automática en la versión web mostrará un aviso. La app Android no necesita esa variable.
+La variable es necesaria tanto para Android como para Web. Los workflows de validación también comprueban que esté configurada antes de compilar los artefactos.
 
 ## Límites que la app informa
 
