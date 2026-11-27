@@ -6,13 +6,17 @@ on:
       - feat/buscador-supermercados-mvp
     paths:
       - 'tools/catalog-smoke-test.mjs'
+      - 'lib/main.dart'
+      - 'lib/services/catalog_service.dart'
+      - 'lib/services/product_facets.dart'
+      - 'worker/src/index.js'
       - '.github/workflows/catalog-smoke-test.yml'
   workflow_dispatch:
     inputs:
       search_query:
         description: 'Producto de prueba (por ejemplo: leche)'
         required: false
-        default: 'cafe'
+        default: 'leche'
   pull_request:
     branches:
       - main
@@ -35,7 +39,7 @@ jobs:
           node-version: '22'
       - name: Consultar una muestra pequeña de cada catálogo VTEX
         env:
-          SEARCH_QUERY: ${{ github.event.inputs.search_query || 'cafe' }}
+          SEARCH_QUERY: ${{ github.event.inputs.search_query || 'leche' }}
         run: node tools/catalog-smoke-test.mjs
       - name: Guardar informe de diagnóstico
         uses: actions/upload-artifact@v4
