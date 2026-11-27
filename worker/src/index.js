@@ -267,7 +267,7 @@ export default {
     }
 
     if (url.pathname === '/health') {
-      return json({ ok: true, service: 'comparador-api', version: '0.1.0' });
+      return json({ ok: true, service: 'comparador-api', version: '0.2.0' });
     }
     if (url.pathname !== '/search' || request.method !== 'GET') {
       return json({ error: 'Usá GET /search?q=producto&store=Jumbo o GET /health' }, 404);
