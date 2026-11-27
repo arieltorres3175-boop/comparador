@@ -171,13 +171,25 @@ async function searchVtex(store, query, limit) {
       const response = await fetch(url, {
         headers: {
           accept: 'application/json',
-          'user-agent': 'ComparadorInteligente/0.1 (public product search)',
+          // Match the browser-origin header used by the successful public
+          // catalogue diagnostic. Several VTEX storefronts reject requests
+          // without this context with HTTP 400.
+          origin: 'https://arieltorres3175-boop.github.io',
+          referer: `https://${store.domain}/`,
+          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36 ComparadorInteligente/0.2.1',
         },
         signal: AbortSignal.timeout(15000),
       });
       status = response.status;
       if (!response.ok) {
-        return { store: store.name, ok: false, status: response.status, offers: [] };
+        const errorBody = (await response.text()).slice(0, 500);
+        return {
+          store: store.name,
+          ok: false,
+          status: response.status,
+          error: errorBody || 'El catálogo VTEX rechazó la consulta.',
+          offers: [],
+        };
       }
       const products = await response.json();
       if (!Array.isArray(products)) {
@@ -267,7 +279,7 @@ export default {
     }
 
     if (url.pathname === '/health') {
-      return json({ ok: true, service: 'comparador-api', version: '0.2.0' });
+      return json({ ok: true, service: 'comparador-api', version: '0.2.1' });
     }
     if (url.pathname !== '/search' || request.method !== 'GET') {
       return json({ error: 'Usá GET /search?q=producto&store=Jumbo o GET /health' }, 404);
