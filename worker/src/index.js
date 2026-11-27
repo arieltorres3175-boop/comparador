@@ -9,9 +9,8 @@ const STORES = [
 
 const COTO_SEARCH = 'https://www.cotodigital.com.ar/sitios/cdigi/categoria';
 
-// Cloudflare Free allows 50 external subrequests per invocation. Two pages
-// per each of the seven stores keep normal searches comfortably below that
-// ceiling, including occasional redirects.
+// Each invocation searches exactly one retailer. This keeps up to ten
+// catalogue pages well below Cloudflare Free's per-invocation subrequest cap.
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -166,7 +165,7 @@ async function searchVtex(store, query, limit) {
     const allProducts = [];
     let status = 200;
     // Respect the page size requested by the app.
-    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
       url.searchParams.set('_from', String(offset));
       url.searchParams.set('_to', String(offset + limit - 1));
       const response = await fetch(url, {
@@ -215,7 +214,7 @@ async function searchCoto(query, limit) {
     const allRecords = [];
     let status = 200;
     // Coto's Endeca API paginates with No/Nrpp; use the same bounded coverage.
-    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
       url.searchParams.set('No', String(offset));
       const response = await fetch(url, {
         headers: {
@@ -271,12 +270,20 @@ export default {
       return json({ ok: true, service: 'comparador-api', version: '0.1.0' });
     }
     if (url.pathname !== '/search' || request.method !== 'GET') {
-      return json({ error: 'Usá GET /search?q=producto o GET /health' }, 404);
+      return json({ error: 'Usá GET /search?q=producto&store=Jumbo o GET /health' }, 404);
     }
 
     const query = (url.searchParams.get('q') ?? '').trim();
     if (query.length < 2 || query.length > 80) {
       return json({ error: 'La búsqueda debe tener entre 2 y 80 caracteres.' }, 400);
+    }
+    const requestedStore = (url.searchParams.get('store') ?? '').trim();
+    const store = STORES.find((item) => item.name === requestedStore);
+    if (!store && requestedStore !== 'Coto') {
+      return json({
+        error: 'Indicá un supermercado válido en el parámetro store.',
+        allowedStores: [...STORES.map((item) => item.name), 'Coto'],
+      }, 400);
     }
     const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') ?? 50) || 50));
 
@@ -290,31 +297,19 @@ export default {
       return new Response(cached.body, { status: cached.status, headers });
     }
 
-    const isBarcode = /^\d{8,14}$/.test(query);
-    const vtexPromise = Promise.all(STORES.map((store) => searchVtex(store, query, limit)));
-    // Text searches query all seven chains concurrently. EAN searches first
-    // resolve the product name from VTEX, then query Coto with that name.
-    const cotoPromise = isBarcode ? null : searchCoto(query, limit);
-    const vtexResults = await vtexPromise;
-    let cotoQuery = query;
-    if (isBarcode) {
-      const matchedVtexProduct = vtexResults
-        .flatMap((result) => result.offers)
-        .find((offer) => offer.ean === query);
-      if (matchedVtexProduct?.name) cotoQuery = matchedVtexProduct.name;
-    }
-    const cotoResult = isBarcode
-      ? await searchCoto(cotoQuery, limit)
-      : await cotoPromise;
-    const storeResults = [...vtexResults, cotoResult];
-    let offers = storeResults.flatMap((result) => result.offers);
-    if (!isBarcode) {
-      const terms = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // One invocation handles one retailer only, with up to ten pages.
+    // Barcode searches for Coto receive the resolved product name from the app.
+    const result = store
+      ? await searchVtex(store, query, limit)
+      : await searchCoto(query, limit);
+    let offers = result.offers;
+    if (!/^\\d{8,14}$/.test(query)) {
+      const terms = query.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
         .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
       offers = offers.filter((offer) => {
         const words = [offer.name, offer.brand ?? '', offer.variant ?? '']
           .join(' ')
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
           .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         if (!terms.every((term) => words.includes(term))) return false;
         if (terms.length === 1 && terms[0] === 'leche' &&
@@ -326,7 +321,7 @@ export default {
       query,
       generatedAt: new Date().toISOString(),
       note: 'Precios publicados en catálogos online. La sucursal, canal de venta, stock y promociones pueden variar. Los productos solo se agrupan como iguales cuando coincide el EAN.',
-      stores: storeResults.map(({ offers: _offers, ...store }) => store),
+      stores: [{ store: result.store, ok: result.ok, status: result.status, ...(result.error ? { error: result.error } : {}) }],
       products: groupByExactEan(offers),
     };
     const response = json(responseBody, 200, { 'x-comparador-cache': 'MISS' });
