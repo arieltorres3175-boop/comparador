@@ -328,5 +328,6 @@ for (const result of results) {
     reason: result.reason ?? null,
   }));
 }
-for (const result of paginationResults) console.log(JSON.stringify({ paginationDiagnostic: result }));\nconsole.log(JSON.stringify({ store: 'Coto', ...coto }));
+for (const result of paginationResults) console.log(JSON.stringify({ paginationDiagnostic: result }));
+console.log(JSON.stringify({ store: 'Coto', ...coto }));
 for (const result of exactEanResults) console.log(JSON.stringify({ verificationEan, ...result }));
