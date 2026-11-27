@@ -29,7 +29,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Leche'));
+    final lecheChip = find.widgetWithText(ChoiceChip, 'Leche');
+    await tester.ensureVisible(lecheChip);
+    await tester.tap(lecheChip);
+    await tester.pump();
     await tester.pumpAndSettle();
 
     expect(find.text('Precisá Leche'), findsOneWidget);
