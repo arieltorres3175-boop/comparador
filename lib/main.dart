@@ -161,32 +161,36 @@ class _HomePageState extends State<HomePage> {
   String get query => searchController.text.trim();
 
   List<CatalogProduct> get _visibleProducts {
-    final products = (searchResult?.products ?? <CatalogProduct>[])
-        .where((product) {
-          final productText = [
-            product.name,
-            product.brand ?? '',
-            ...product.offers.expand((offer) => [
-              offer.name,
-              offer.brand ?? '',
-              offer.variant ?? '',
-            ]),
-          ].join(' ');
-          return (selectedBrand == null ||
-                  ProductFacets.matchesBrand(
-                    selectedCategory ?? '',
-                    selectedBrand!,
-                    productText,
-                  )) &&
-              (selectedCategory == null ||
-                  (ProductFacets.isCategoryProduct(selectedCategory!, productText) &&
-                      ProductFacets.matches(
-                        selectedCategory!,
-                        productText,
-                        selectedFacets,
-                      )));
-        })
-        .toList();
+    final category = selectedCategory;
+    final products = <CatalogProduct>[];
+    for (final product in searchResult?.products ?? const <CatalogProduct>[]) {
+      final matchingOffers = product.offers.where((offer) {
+        final offerText = [offer.name, offer.variant ?? ''].join(' ');
+        final categoryMatch = category == null ||
+            ProductFacets.isCategoryProduct(category, offerText) ||
+            ProductFacets.isCategoryProduct(category, product.name);
+        final offerBrand = ProductFacets.normalize(
+          offer.brand ?? product.brand ?? '',
+        );
+        final brandMatch = selectedBrand == null ||
+            offerBrand == ProductFacets.normalize(selectedBrand!);
+        final facetMatch = category == null ||
+            ProductFacets.matches(
+              category,
+              offerText.isEmpty ? product.name : offerText,
+              selectedFacets,
+            );
+        return categoryMatch && brandMatch && facetMatch;
+      }).toList();
+      if (matchingOffers.isEmpty) continue;
+      products.add(CatalogProduct(
+        name: product.name,
+        ean: product.ean,
+        brand: product.brand,
+        comparableByEan: product.comparableByEan,
+        offers: matchingOffers,
+      ));
+    }
     if (sortMode == 'brand') {
       products.sort((a, b) => (a.brand ?? a.name)
           .toLowerCase()
@@ -243,18 +247,32 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  bool _isCategoryCatalogProduct(CatalogProduct product) {
+    final category = selectedCategory;
+    if (category == null) return false;
+    return product.offers.any((offer) =>
+        ProductFacets.isCategoryProduct(category, offer.name) ||
+        ProductFacets.isCategoryProduct(category, product.name));
+  }
+
   List<String> get _availableBrandOptions {
-    final values = <String>{};
+    final values = <String, String>{};
     for (final product in discoveryResult?.products ?? const <CatalogProduct>[]) {
-      final brand = (product.brand ??
-              product.offers.map((offer) => offer.brand).firstWhere(
-                    (value) => value != null && value.trim().isNotEmpty,
-                    orElse: () => null,
-                  ))
-          ?.trim();
-      if (brand != null && brand.isNotEmpty) values.add(brand);
+      if (!_isCategoryCatalogProduct(product)) continue;
+      for (final offer in product.offers) {
+        if (!ProductFacets.isCategoryProduct(
+          selectedCategory!,
+          offer.name,
+        ) && !ProductFacets.isCategoryProduct(
+          selectedCategory!,
+          product.name,
+        )) continue;
+        final brand = (offer.brand ?? product.brand ?? '').trim();
+        if (brand.isEmpty) continue;
+        values.putIfAbsent(ProductFacets.normalize(brand), () => brand);
+      }
     }
-    final result = values.toList()
+    final result = values.values.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return result;
   }
@@ -263,26 +281,27 @@ class _HomePageState extends State<HomePage> {
     if (selectedBrand == null) return const [];
     final target = ProductFacets.normalize(selectedBrand!);
     return (discoveryResult?.products ?? const <CatalogProduct>[]).where((product) {
-      final brands = [
-        product.brand ?? '',
-        ...product.offers.map((offer) => offer.brand ?? ''),
-      ].map(ProductFacets.normalize);
-      return brands.any((brand) => brand == target);
+      if (!_isCategoryCatalogProduct(product)) return false;
+      return product.offers.any((offer) {
+        final offerCategoryMatch =
+            ProductFacets.isCategoryProduct(selectedCategory!, offer.name) ||
+            ProductFacets.isCategoryProduct(selectedCategory!, product.name);
+        final brand = ProductFacets.normalize(offer.brand ?? product.brand ?? '');
+        return offerCategoryMatch && brand == target;
+      });
     }).toList();
   }
 
   Map<String, List<String>> get _brandFacetOptions {
     if (selectedCategory == null || selectedBrand == null) return const {};
-    return ProductFacets.available(
-      selectedCategory!,
-      _productsForSelectedBrand.expand((product) => [
-        product.name,
-        ...product.offers.expand((offer) => [
-          offer.name,
-          offer.variant ?? '',
-        ]),
-      ]),
-    );
+    final target = ProductFacets.normalize(selectedBrand!);
+    final names = _productsForSelectedBrand.expand((product) =>
+        product.offers.where((offer) =>
+          ProductFacets.normalize(offer.brand ?? product.brand ?? '') == target &&
+          (ProductFacets.isCategoryProduct(selectedCategory!, offer.name) ||
+           ProductFacets.isCategoryProduct(selectedCategory!, product.name))
+        ).expand((offer) => [offer.name, offer.variant ?? '']));
+    return ProductFacets.available(selectedCategory!, names);
   }
 
   String? _selectedFacetValue(Set<String> keys) {
@@ -309,6 +328,7 @@ class _HomePageState extends State<HomePage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
       hint: Text(hint ?? 'Seleccioná una opción'),
+      key: ValueKey('$label|$value|${options.join('|')}'),
       items: options
           .map((option) => DropdownMenuItem<String>(
                 value: option,
@@ -374,7 +394,6 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       setState(() {
         searchResult = result;
-        discoveryResult = result;
       });
     } catch (error) {
       if (!mounted) return;
