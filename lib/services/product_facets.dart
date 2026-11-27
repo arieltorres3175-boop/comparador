@@ -215,6 +215,11 @@ class ProductFacets {
     return result;
   }
 
+  static bool matchesBrand(String category, String brand, String productText) {
+    final normalizedBrand = normalize(brand);
+    return normalizedBrand.isEmpty || normalize(productText).contains(normalizedBrand);
+  }
+
   static Map<String, List<String>> available(
     String category,
     Iterable<String> productNames,
