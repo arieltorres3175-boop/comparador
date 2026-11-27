@@ -54,6 +54,21 @@ void main() {
       expect(facets.values, isNot(contains('Botella')));
     });
 
+    test('excluye productos de higiene y alimentos con dulce de leche', () {
+      expect(
+        ProductFacets.isCategoryProduct('Leche', 'Leche corporal hidratante 400 ml'),
+        isFalse,
+      );
+      expect(
+        ProductFacets.isCategoryProduct('Leche', 'Alfajor relleno con dulce de leche'),
+        isFalse,
+      );
+      expect(
+        ProductFacets.isCategoryProduct('Leche', 'Leche UAT La Serenísima 1 L'),
+        isTrue,
+      );
+    });
+
     test('solo ofrece atributos presentes en los productos de la marca elegida', () {
       final options = ProductFacets.available('Leche', [
         'Leche UAT Sancor Entera Sachet 1 L',
