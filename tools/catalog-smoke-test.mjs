@@ -314,6 +314,22 @@ const workerIntegrationResults = [];
 let workerBase = process.env.COMPARADOR_API_BASE_URL?.trim() ?? '';
 while (workerBase.endsWith('/')) workerBase = workerBase.slice(0, -1);
 if (workerBase) {
+  let workerVersion = null;
+  try {
+    const healthResponse = await fetch(new URL('/health', workerBase), {
+      signal: AbortSignal.timeout(15000),
+    });
+    const health = await healthResponse.json();
+    workerVersion = health?.version ?? null;
+  } catch (_) {}
+  if (workerVersion !== '0.2.0') {
+    workerIntegrationResults.push({
+      skipped: true,
+      deployedVersion: workerVersion,
+      requiredVersion: '0.2.0',
+      reason: 'El Worker desplegado todavía no tiene el endpoint aislado por supermercado. Desplegá la versión validada y repetí este diagnóstico.',
+    });
+  } else {
   const workerStores = [...stores.map((store) => store.name), 'Coto'];
   for (const workerQuery of ['leche', 'arroz', 'aceite']) {
     for (const workerStore of workerStores) {
@@ -346,6 +362,7 @@ if (workerBase) {
       }
       await new Promise((resolve) => setTimeout(resolve, 350));
     }
+  }
   }
 } else {
   workerIntegrationResults.push({
