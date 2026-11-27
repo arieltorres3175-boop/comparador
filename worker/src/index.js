@@ -311,7 +311,7 @@ export default {
       offers = offers.filter((offer) => {
         const words = [offer.name, offer.brand ?? '', offer.variant ?? '']
           .join(' ')
-          .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         if (!terms.every((term) => words.includes(term))) return false;
         if (terms.length === 1 && terms[0] === 'leche' &&
