@@ -161,8 +161,9 @@ async function searchVtex(store, query, limit) {
   try {
     const allProducts = [];
     let status = 200;
-    // Keep web and Android coverage aligned: fetch at most two VTEX pages.
-    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
+    // The request contains the user's selected product criteria; continue paging
+    // until the matching result set is exhausted or the safety cap is reached.
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
       url.searchParams.set('_from', String(offset));
       url.searchParams.set('_to', String(offset + limit - 1));
       const response = await fetch(url, {
@@ -210,7 +211,7 @@ async function searchCoto(query, limit) {
   try {
     const allRecords = [];
     let status = 200;
-    // Coto's Endeca API paginates with No/Nrpp. Cap at two pages for latency.
+    // Coto's Endeca API paginates with No/Nrpp; use the same bounded coverage.
     for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
       url.searchParams.set('No', String(offset));
       const response = await fetch(url, {
