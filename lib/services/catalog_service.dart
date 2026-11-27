@@ -305,14 +305,18 @@ class CatalogService {
 
       // La consulta ya incluye los criterios elegidos por el usuario. Paginamos
       // hasta agotar coincidencias o alcanzar un límite de seguridad.
-      for (var offset = 0, page = 0; page < 10; offset += limit, page++) {
+      // VTEX admite un rango máximo de 50 productos por petición.
+      // Usamos páginas de 50 para no generar rangos inválidos cuando limit
+      // es menor (por ejemplo, _from=40&_to=59).
+      const pageSize = 50;
+      for (var offset = 0, page = 0; page < 10; offset += pageSize, page++) {
         final uri = Uri.https(
           store.domain,
           '/api/catalog_system/pub/products/search',
           {
             'ft': query,
             '_from': '$offset',
-            '_to': '${offset + limit - 1}',
+            '_to': '${offset + pageSize - 1}',
           },
         );
         final response = await _client.get(
