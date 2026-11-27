@@ -36,8 +36,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Precisá Leche'), findsOneWidget);
-    // Check the actual TextField configuration rather than rendered label
-    // text, which may float or be outside the viewport in widget tests.
+    // Inspect the TextField configuration; decoration is nullable in Flutter.
     for (final label in [
       'Marca',
       'Tipo o variedad',
@@ -47,7 +46,7 @@ void main() {
       expect(
         find.byWidgetPredicate(
           (widget) => widget is TextField &&
-              widget.decoration.labelText == label,
+              widget.decoration?.labelText == label,
         ),
         findsOneWidget,
         reason: 'Debe existir el criterio "$label" antes de consultar tiendas.',
