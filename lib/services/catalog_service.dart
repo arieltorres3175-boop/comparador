@@ -195,9 +195,11 @@ class CatalogService {
       throw Exception('Escribí al menos dos caracteres para buscar.');
     }
 
-    if (kIsWeb) {
+    if (_workerApiBase.trim().isNotEmpty) {
+      // Use the server-side catalog proxy on Android and Web. Retailer APIs
+      // can reject direct mobile requests even when they work server-side.
       final workerResult = await _searchThroughWorker(sourceQuery, limit);
-      if (RegExp(r'^\d{8,14}$').hasMatch(sourceQuery)) {
+      if (RegExp(r'^\\d{8,14}$').hasMatch(sourceQuery)) {
         return CatalogSearchResult(
           query: query,
           generatedAt: workerResult.generatedAt,
@@ -207,7 +209,15 @@ class CatalogService {
       }
       final filteredProducts = workerResult.products
           .where((product) => _matchesSearchQuery(
-            [product.name, product.brand ?? '', ...product.offers.map((offer) => offer.variant ?? '')].join(' '),
+            [
+              product.name,
+              product.brand ?? '',
+              ...product.offers.expand((offer) => [
+                offer.name,
+                offer.brand ?? '',
+                offer.variant ?? '',
+              ]),
+            ].join(' '),
             sourceQuery,
           ))
           .toList();
@@ -216,6 +226,11 @@ class CatalogService {
         generatedAt: workerResult.generatedAt,
         products: filteredProducts,
         stores: workerResult.stores,
+      );
+    }
+    if (kIsWeb) {
+      throw Exception(
+        'La búsqueda web necesita configurar COMPARADOR_API_BASE_URL.',
       );
     }
 
