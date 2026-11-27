@@ -171,7 +171,7 @@ async function checkCotoExactEan(ean) {
   url.searchParams.set('_dyncharset', 'utf8');
   url.searchParams.set('Dy', '1');
   url.searchParams.set('Nrpp', '20');
-  url.searchParams.set('Ntt', process.env.COTO_VERIFY_QUERY?.trim() || 'arroz con leche Tregar');
+  url.searchParams.set('Ntt', process.env.COTO_VERIFY_QUERY?.trim() || 'Leche Parcialmente Descremada Liviana Larga Vida La Serenisima 1l');
   url.searchParams.set('idSucursal', '200');
   url.searchParams.set('format', 'json');
   try {
@@ -244,7 +244,7 @@ for (const store of stores) {
   await new Promise((resolve) => setTimeout(resolve, 1200));
 }
 const coto = await checkCoto();
-const verificationEan = process.env.VERIFY_EAN?.trim() || '7793913013467';
+const verificationEan = process.env.VERIFY_EAN?.trim() || '7790742335609';
 const exactEanResults = [await checkCotoExactEan(verificationEan)];
 for (const store of stores) {
   exactEanResults.push(await checkExactEan(store, verificationEan));
