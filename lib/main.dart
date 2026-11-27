@@ -883,7 +883,7 @@ class _HomePageState extends State<HomePage> {
                           ? Colors.green.shade700
                           : Colors.red.shade700,
                     ),
-                    label: Text('\${status.store}: $count'),
+                    label: Text('${status.store}: $count'),
                     visualDensity: VisualDensity.compact,
                   );
                 })
@@ -897,8 +897,8 @@ class _HomePageState extends State<HomePage> {
             ),
             ...result.stores.where((status) => !status.ok).map((status) =>
                 Text(
-                  '\${status.store}: \${status.error ?? 'sin respuesta'}'
-                  '\${status.status == null ? '' : ' (HTTP \${status.status})'}',
+                  '${status.store}: ${status.error ?? 'sin respuesta'}'
+                  '\${status.status == null ? '' : ' (HTTP ${status.status})'}',
                   style: const TextStyle(fontSize: 12, color: Colors.red),
                 )),
           ],
