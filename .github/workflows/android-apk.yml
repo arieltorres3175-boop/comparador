@@ -30,6 +30,15 @@ jobs:
       - name: instalar dependencias
         run: flutter pub get
 
+      - name: Verificar intermediario de catálogos para Android
+        env:
+          COMPARADOR_API_BASE_URL: ${{ vars.COMPARADOR_API_BASE_URL }}
+        run: |
+          if [ -z "$COMPARADOR_API_BASE_URL" ]; then
+            echo "::error::Falta configurar la variable de repositorio COMPARADOR_API_BASE_URL con la URL del Worker desplegado."
+            exit 1
+          fi
+
       - name: compilar apk
         run: flutter build apk --release --dart-define=COMPARADOR_API_BASE_URL=${{ vars.COMPARADOR_API_BASE_URL }}
 
