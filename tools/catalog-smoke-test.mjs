@@ -311,7 +311,7 @@ for (const store of stores) {
 
 
 const workerIntegrationResults = [];
-const workerBase = process.env.COMPARADOR_API_BASE_URL?.trim().replace(/\\/+$/, '');
+const workerBase = process.env.COMPARADOR_API_BASE_URL?.trim().replace(/\/+$/, '');
 if (workerBase) {
   for (const workerQuery of ['leche', 'arroz', 'aceite']) {
     try {
