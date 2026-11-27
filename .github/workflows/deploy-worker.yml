@@ -2,6 +2,12 @@ name: desplegar-api-comparador
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/buscador-supermercados-mvp
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-worker.yml'
 
 permissions:
   contents: read
