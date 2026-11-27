@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
   bool loading = true;
   bool searching = false;
   bool loadingDiscovery = false;
+  int discoveryRequest = 0;
   String? discoveryError;
   String? message;
   String? searchError;
@@ -207,11 +208,16 @@ class _HomePageState extends State<HomePage> {
       searchResult = null;
       discoveryResult = null;
       searchError = null;
+      brandFilterController.clear();
+      variantFilterController.clear();
+      packageFilterController.clear();
+      sizeFilterController.clear();
     });
+    if (category != null) _loadCategoryDiscovery(category);
   }
 
   Future<void> _loadCategoryDiscovery(String category) async {
-    if (loadingDiscovery) return;
+    final request = ++discoveryRequest;
     setState(() {
       loadingDiscovery = true;
       discoveryError = null;
@@ -226,14 +232,14 @@ class _HomePageState extends State<HomePage> {
         ProductFacets.categories[category]!,
         limit: 50,
       );
-      if (!mounted || selectedCategory != category) return;
+      if (!mounted || selectedCategory != category || request != discoveryRequest) return;
       setState(() => discoveryResult = result);
     } catch (error) {
-      if (!mounted || selectedCategory != category) return;
+      if (!mounted || selectedCategory != category || request != discoveryRequest) return;
       setState(() => discoveryError =
           error.toString().replaceFirst('Exception: ', ''));
     } finally {
-      if (mounted) setState(() => loadingDiscovery = false);
+      if (mounted && request == discoveryRequest) setState(() => loadingDiscovery = false);
     }
   }
 
@@ -586,24 +592,6 @@ class _HomePageState extends State<HomePage> {
               icon: Icon(Icons.storefront), label: 'Resultados'),
           NavigationDestination(icon: Icon(Icons.list_alt), label: 'Mi lista'),
         ],
-      ),
-    );
-  }
-
-  Widget _searchCriterionField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-  }) {
-    return TextField(
-      controller: controller,
-      textCapitalization: TextCapitalization.sentences,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
