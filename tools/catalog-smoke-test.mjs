@@ -309,6 +309,46 @@ for (const store of stores) {
   await new Promise((resolve) => setTimeout(resolve, 1200));
 }
 
+
+const workerIntegrationResults = [];
+const workerBase = process.env.COMPARADOR_API_BASE_URL?.trim().replace(/\\/+$/, '');
+if (workerBase) {
+  for (const workerQuery of ['leche', 'arroz', 'aceite']) {
+    try {
+      const workerUrl = new URL('/search', workerBase);
+      workerUrl.searchParams.set('q', workerQuery);
+      workerUrl.searchParams.set('limit', '20');
+      const response = await fetch(workerUrl, { signal: AbortSignal.timeout(90000) });
+      const body = await response.text();
+      let data = null;
+      try { data = JSON.parse(body); } catch (_) {}
+      workerIntegrationResults.push({
+        query: workerQuery,
+        httpStatus: response.status,
+        ok: response.ok,
+        responseValidJson: data != null,
+        storeStatuses: (data?.stores ?? []).map((store) => ({
+          store: store.store, ok: store.ok, status: store.status ?? null,
+          error: store.error ?? null,
+        })),
+        productsCount: data?.products?.length ?? null,
+        bodyPreview: data == null ? body.slice(0, 1000) : null,
+      });
+    } catch (error) {
+      workerIntegrationResults.push({
+        query: workerQuery, ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+} else {
+  workerIntegrationResults.push({
+    ok: false,
+    skipped: true,
+    reason: 'COMPARADOR_API_BASE_URL is not configured in this workflow',
+  });
+}
+
 const report = {
   generatedAt: new Date().toISOString(),
   query,
@@ -316,6 +356,7 @@ const report = {
   note: 'Diagnostic only. Results are not yet used as consumer prices.',
   results,
   paginationResults,
+  workerIntegrationResults,
   coto,
   exactEanResults,
 };
