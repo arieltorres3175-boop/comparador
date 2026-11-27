@@ -5,7 +5,9 @@ Intermediario liviano para consultar los catálogos públicos de Jumbo, Disco, V
 ## Rutas
 
 - `GET /health`: estado del servicio.
-- `GET /search?q=leche&limit=10`: consulta las siete cadenas.
+- `GET /search?q=leche&store=Jumbo&limit=50`: consulta una sola cadena por invocación. Valores válidos: `Jumbo`, `Disco`, `Vea`, `Carrefour`, `DIA`, `ChangoMás` y `Coto`.
+- La app realiza una invocación independiente por supermercado, conserva los resultados parciales y reintenta hasta dos veces adicionales únicamente las tiendas que fallan.
+- Cada invocación puede recorrer hasta 10 páginas del catálogo de esa tienda; una tienda exitosa sin coincidencias no se reintenta.
 - Los productos solo se agrupan entre comercios cuando coincide el EAN.
 - La respuesta incluye precio online, precio de lista si el comercio lo informa, imagen, enlace y disponibilidad cuando existe.
 - La respuesta identifica la fecha de consulta y el canal/sucursal de referencia.
@@ -38,8 +40,8 @@ npx wrangler deploy
 ## Límites y cuidados
 
 - El Worker no inicia sesión ni agrega productos a carritos.
-- Consulta únicamente búsquedas públicas y limita cada tienda a 20 resultados.
-- Cachea cada búsqueda durante aproximadamente un minuto.
+- Consulta únicamente búsquedas públicas y limita cada invocación a 10 páginas de hasta 50 resultados por página.
+- Cachea cada búsqueda por supermercado durante aproximadamente un minuto.
 - Coto está consultado con `idSucursal=200` como referencia técnica. Antes de presentarlo como precio de la zona del usuario hay que permitir seleccionar la sucursal correcta.
 - VTEX usa el canal online predeterminado de cada tienda; puede variar por código postal/sucursal.
 - No interpreta todavía descuentos bancarios, topes, medios de pago ni acumulación de promociones.
