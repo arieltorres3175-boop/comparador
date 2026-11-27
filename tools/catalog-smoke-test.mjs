@@ -322,11 +322,11 @@ if (workerBase) {
     const health = await healthResponse.json();
     workerVersion = health?.version ?? null;
   } catch (_) {}
-  if (workerVersion !== '0.2.0') {
+  if (workerVersion !== '0.2.1') {
     workerIntegrationResults.push({
       skipped: true,
       deployedVersion: workerVersion,
-      requiredVersion: '0.2.0',
+      requiredVersion: '0.2.1',
       reason: 'El Worker desplegado todavía no tiene el endpoint aislado por supermercado. Desplegá la versión validada y repetí este diagnóstico.',
     });
   } else {
