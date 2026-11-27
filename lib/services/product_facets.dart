@@ -215,41 +215,6 @@ class ProductFacets {
     return result;
   }
 
-  static const _milkBrands = <String>[
-    'La Serenísima', 'Las Tres Niñas', 'Sancor', 'Milkaut', 'Tregar',
-    'Ilolay', 'Manfrey', 'Casanto', 'DIA', 'Verónica', 'Conaprole',
-    'La Suipachense', 'Punta del Agua', 'Lactear',
-  ];
-
-  static List<String> availableBrands(String category, Iterable<String> productNames) {
-    final found = <String>{};
-    for (final raw in productNames) {
-      final text = normalize(raw);
-      if (category == 'Leche') {
-        for (final brand in _milkBrands) {
-          if (text.contains(normalize(brand))) found.add(brand);
-        }
-      }
-    }
-    final sorted = found.toList()..sort();
-    return sorted;
-  }
-
-  static String canonicalBrand(String category, String value) {
-    final normalized = normalize(value);
-    if (category == 'Leche') {
-      for (final brand in _milkBrands) {
-        if (normalize(brand) == normalized) return brand;
-      }
-    }
-    return value.trim();
-  }
-
-  static bool matchesBrand(String category, String brand, String productText) {
-    final normalizedBrand = normalize(brand);
-    return normalizedBrand.isEmpty || normalize(productText).contains(normalizedBrand);
-  }
-
   static Map<String, List<String>> available(
     String category,
     Iterable<String> productNames,
@@ -273,30 +238,6 @@ class ProductFacets {
       if (normalized == normalize(entry.value) || normalized == normalize(entry.key) || normalized.startsWith('${normalize(entry.value)} ') || normalized.startsWith('${normalize(entry.key)} ')) return entry.key;
     }
     return null;
-  }
-
-  // Opciones de selección previas a la consulta; no implican disponibilidad en tiendas.
-  static Map<String, List<String>> initialOptions(String category) {
-    const options = <String, Map<String, List<String>>>{
-      'Leche': {
-        'Tipo': ['Entera', 'Descremada', 'Semidescremada', 'Sin lactosa', 'En polvo', 'Infantil', 'Saborizada'],
-        'Envase': ['Sachet', 'Caja de cartón'],
-      },
-      'Café': {
-        'Preparación': ['Torrado', 'Tostado', 'Instantáneo', 'Molido', 'En grano'],
-        'Presentación': ['Frasco', 'Saquitos', 'Cápsulas', 'Paquete', 'Doypack'],
-      },
-      'Gaseosas': {
-        'Tipo': ['Regular', 'Sin azúcar / Zero', 'Light'],
-        'Envase': ['Botella', 'Lata', 'Retornable', 'Descartable'],
-      },
-      'Atún': {'Preparación': ['Al natural', 'En aceite', 'En agua'], 'Presentación': ['Lomitos', 'Desmenuzado', 'Trozos']},
-      'Paté': {'Variedad': ['Jamón', 'Cerdo', 'Hígado', 'Ave']},
-      'Yogur': {'Tipo': ['Griego', 'Bebible', 'Firme', 'Descremado', 'Entero', 'Sin lactosa'], 'Sabor': ['Frutilla', 'Vainilla', 'Durazno', 'Natural']},
-      'Crema': {'Tipo': ['Para cocinar', 'Para batir', 'Liviana', 'Doble']},
-      'Manteca': {'Variante': ['Con sal', 'Sin sal'], 'Presentación': ['Pote', 'Pan', 'Envoltorio', 'Pack']},
-    };
-    return options[category] ?? const {};
   }
 
   static bool matches(
