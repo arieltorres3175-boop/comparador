@@ -47,6 +47,7 @@ function cotoResponse() {
                   'sku.listPrice': ['2700.000000'],
                   'product.eanPrincipal': [expectedEan],
                   'sku.displayName': ['Arroz Con Leche Tregar 180 g'],
+                  'product.brand': ['Tregar'],
                   'product.largeImage.url': ['https://images.example/coto.jpg'],
                   'product.dtoDescuentos': ['[]'],
                 },
@@ -120,6 +121,7 @@ test('groups identical products by EAN and preserves store-specific prices', asy
   assert.equal(exact.offers.length, 6);
   assert.equal(exact.comparableByEan, true);
   assert.ok(exact.offers.every((offer) => offer.price === 2500));
+  assert.equal(exact.offers.find((offer) => offer.store === 'Coto')?.brand, 'Tregar');
   assert.match(cotoSearchTerm, /Arroz con leche Tregar/i);
 });
 
