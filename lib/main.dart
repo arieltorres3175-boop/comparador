@@ -396,6 +396,10 @@ class _HomePageState extends State<HomePage> {
         query,
         catalogQuery: _specificSearchQuery,
         limit: 50,
+        onProgress: (partialResult) {
+          if (!mounted) return;
+          setState(() => searchResult = partialResult);
+        },
       );
       if (!mounted) return;
       setState(() {
