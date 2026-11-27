@@ -157,45 +157,6 @@ class _HomePageState extends State<HomePage> {
 
   String get query => searchController.text.trim();
 
-  List<String> get _discoveredProductText {
-    final result = discoveryResult;
-    if (result == null) return const [];
-    return result.products.expand((product) => [
-      product.name,
-      if (product.brand != null) product.brand!,
-      ...product.offers.expand((offer) => [
-        offer.name,
-        if (offer.brand != null) offer.brand!,
-        if (offer.variant != null) offer.variant!,
-      ]),
-    ]).toList();
-  }
-
-  List<String> get _availableBrands {
-    final result = discoveryResult;
-    if (selectedCategory == null || result == null) return const [];
-    final found = <String>{
-      ...ProductFacets.availableBrands(selectedCategory!, _discoveredProductText),
-    };
-    for (final product in result.products) {
-      if (product.brand != null && product.brand!.trim().isNotEmpty) {
-        found.add(ProductFacets.canonicalBrand(selectedCategory!, product.brand!));
-      }
-      for (final offer in product.offers) {
-        if (offer.brand != null && offer.brand!.trim().isNotEmpty) {
-          found.add(ProductFacets.canonicalBrand(selectedCategory!, offer.brand!));
-        }
-      }
-    }
-    final sorted = found.toList()..sort();
-    return sorted;
-  }
-
-  Map<String, List<String>> get _availableFacets {
-    if (selectedCategory == null || discoveryResult == null) return const {};
-    return ProductFacets.available(selectedCategory!, _discoveredProductText);
-  }
-
   List<CatalogProduct> get _visibleProducts {
     final products = (searchResult?.products ?? <CatalogProduct>[])
         .where((product) {
