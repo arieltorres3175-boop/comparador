@@ -145,7 +145,7 @@ test('parses comma thousands separators as thousands, not decimal fractions', as
 });
 
 
-test('caps a full VTEX search at ten pages per store', async () => {
+test('caps a full VTEX search at two pages per store', async () => {
   const requests = new Map();
   globalThis.fetch = async (input) => {
     const url = new URL(input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url);
@@ -174,7 +174,7 @@ test('caps a full VTEX search at ten pages per store', async () => {
 
   assert.equal(response.status, 200);
   assert.equal(requests.size, 6);
-  assert.ok([...requests.values()].every((count) => count === 10));
+  assert.ok([...requests.values()].every((count) => count === 2));
 });
 
 test('stops VTEX pagination when a page contains fewer results than requested', async () => {
