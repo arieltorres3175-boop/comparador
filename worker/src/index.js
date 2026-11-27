@@ -161,12 +161,10 @@ async function searchVtex(store, query, limit) {
   try {
     const allProducts = [];
     let status = 200;
-    // VTEX allows at most 50 products in each pagination range.
-    // Keep page boundaries aligned even when the app asks for a smaller limit.
-    const pageSize = 50;
-    for (let offset = 0, page = 0; page < 10; offset += pageSize, page++) {
+    // Respect the page size requested by the app.
+    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
       url.searchParams.set('_from', String(offset));
-      url.searchParams.set('_to', String(offset + pageSize - 1));
+      url.searchParams.set('_to', String(offset + limit - 1));
       const response = await fetch(url, {
         headers: {
           accept: 'application/json',
