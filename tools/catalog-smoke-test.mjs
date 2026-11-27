@@ -115,6 +115,56 @@ async function checkStore(store) {
   }
 }
 
+
+async function checkVtexPagination(store) {
+  const pageSize = 20;
+  const pages = [];
+  const url = new URL('/api/catalog_system/pub/products/search', `https://${store.domain}`);
+  url.searchParams.set('ft', query);
+  for (let page = 0; page < 10; page++) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    url.searchParams.set('_from', String(from));
+    url.searchParams.set('_to', String(to));
+    const started = Date.now();
+    try {
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+          'user-agent': 'ComparadorInteligentePaginationDiagnostic/1.0',
+        },
+        signal: AbortSignal.timeout(18000),
+      });
+      const body = await response.text();
+      let count = null;
+      let jsonValid = false;
+      try {
+        const parsed = JSON.parse(body);
+        jsonValid = Array.isArray(parsed);
+        count = Array.isArray(parsed) ? parsed.length : null;
+      } catch (_) {}
+      pages.push({
+        page: page + 1, from, to, status: response.status,
+        ok: response.ok, contentRange: response.headers.get('content-range'),
+        contentType: response.headers.get('content-type'),
+        durationMs: Date.now() - started, jsonValid, count,
+        errorPreview: response.ok && jsonValid ? null : body.slice(0, 500),
+      });
+      if (!response.ok || !jsonValid || count === 0 || count < pageSize) break;
+    } catch (error) {
+      pages.push({
+        page: page + 1, from, to, status: null, ok: false,
+        durationMs: Date.now() - started,
+        errorPreview: error instanceof Error ? error.message : String(error),
+      });
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+  return { store: store.name, domain: store.domain, pageSize, pages,
+    failedAtPage: pages.find((item) => !item.ok)?.page ?? null };
+}
+
 async function checkCoto() {
   const url = new URL('https://www.cotodigital.com.ar/sitios/cdigi/categoria');
   url.searchParams.set('_dyncharset', 'utf8');
@@ -237,7 +287,13 @@ async function checkExactEan(store, ean) {
   }
 }
 
-const results = [];
+
+const paginationResults = [];
+for (const store of stores) {
+  paginationResults.push(await checkVtexPagination(store));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+}
+\nconst results = [];
 for (const store of stores) {
   results.push(await checkStore(store));
   // Keep requests sequential and gentle: one small query per retailer.
@@ -271,5 +327,5 @@ for (const result of results) {
     reason: result.reason ?? null,
   }));
 }
-console.log(JSON.stringify({ store: 'Coto', ...coto }));
+for (const result of paginationResults) console.log(JSON.stringify({ paginationDiagnostic: result }));\nconsole.log(JSON.stringify({ store: 'Coto', ...coto }));
 for (const result of exactEanResults) console.log(JSON.stringify({ verificationEan, ...result }));
