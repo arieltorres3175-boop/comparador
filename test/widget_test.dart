@@ -37,6 +37,7 @@ void main() {
     expect(find.text('Tipo o variedad'), findsOneWidget);
     expect(find.text('Envase o presentación'), findsOneWidget);
     expect(find.text('Contenido'), findsOneWidget);
+    expect(find.textContaining('Primero consultamos los supermercados'), findsNothing);
     expect(find.text('Buscar en los supermercados'), findsOneWidget);
   });
 
