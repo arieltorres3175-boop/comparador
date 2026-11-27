@@ -95,6 +95,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final searchController = TextEditingController();
+  final brandFilterController = TextEditingController();
+  final variantFilterController = TextEditingController();
+  final packageFilterController = TextEditingController();
+  final sizeFilterController = TextEditingController();
   final basket = <ShoppingItem>[];
   final catalogService = CatalogService();
   int page = 0;
@@ -118,6 +122,10 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     searchController.dispose();
+    brandFilterController.dispose();
+    variantFilterController.dispose();
+    packageFilterController.dispose();
+    sizeFilterController.dispose();
     catalogService.close();
     super.dispose();
   }
@@ -239,6 +247,14 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  String get _specificSearchQuery => [
+        query,
+        brandFilterController.text.trim(),
+        variantFilterController.text.trim(),
+        packageFilterController.text.trim(),
+        sizeFilterController.text.trim(),
+      ].where((part) => part.isNotEmpty).join(' ');
+
   Future<void> _performSearch({
     bool keepDiscovery = false,
   }) async {
@@ -258,7 +274,11 @@ class _HomePageState extends State<HomePage> {
       }
     });
     try {
-      final result = await catalogService.search(query);
+      final result = await catalogService.search(
+        query,
+        catalogQuery: _specificSearchQuery,
+        limit: 50,
+      );
       if (!mounted) return;
       setState(() {
         searchResult = result;
@@ -322,6 +342,10 @@ class _HomePageState extends State<HomePage> {
     await _saveBasket();
     if (!mounted) return;
     searchController.clear();
+    brandFilterController.clear();
+    variantFilterController.clear();
+    packageFilterController.clear();
+    sizeFilterController.clear();
     setState(() {
       selectedCategory = null;
       selectedBrand = null;
@@ -483,6 +507,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _searchCriterionField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+  }) {
+    return TextField(
+      controller: controller,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
   Widget _searchPage() {
     return ListView(
       padding: const EdgeInsets.all(18),
@@ -527,7 +569,11 @@ class _HomePageState extends State<HomePage> {
                     selectedCategory = selected ? category : null;
                     selectedFacets.clear();
                     selectedBrand = null;
-                                  searchResult = null;
+                    brandFilterController.clear();
+                    variantFilterController.clear();
+                    packageFilterController.clear();
+                    sizeFilterController.clear();
+                    searchResult = null;
                     discoveryResult = null;
                     searchController.text = selected
                         ? ProductFacets.categories[category]!
@@ -547,7 +593,11 @@ class _HomePageState extends State<HomePage> {
             suffixIcon: IconButton(
               onPressed: () {
                 searchController.clear();
-                          setState(() {
+                brandFilterController.clear();
+                variantFilterController.clear();
+                packageFilterController.clear();
+                sizeFilterController.clear();
+                setState(() {
                   selectedCategory = null;
                   selectedBrand = null;
                   selectedFacets.clear();
@@ -577,63 +627,37 @@ class _HomePageState extends State<HomePage> {
         ],
         if (selectedCategory != null) ...[
           const SizedBox(height: 16),
-          Text('Filtros para $selectedCategory', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          Text('Precisá $selectedCategory',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          const SizedBox(height: 6),
+          const Text(
+            'Completá los datos que conozcas. Se enviarán junto con el producto a cada supermercado para buscar esa presentación, no un catálogo completo.',
+            style: TextStyle(color: Colors.black54, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          _searchCriterionField(
+            controller: brandFilterController,
+            label: 'Marca',
+            hint: 'Ej. La Serenísima, Cabrales, Arcor',
+          ),
           const SizedBox(height: 8),
-          if (discoveryResult == null) ...[
-            const Text(
-              'Primero consultamos los supermercados. Después te mostramos únicamente las marcas y características que encontramos.',
-              style: TextStyle(color: Colors.black54, fontSize: 12),
-            ),
-          ] else ...[
-            if (_availableBrands.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: DropdownButtonFormField<String>(
-                  value: _availableBrands.contains(selectedBrand) ? selectedBrand : null,
-                  decoration: InputDecoration(
-                    labelText: 'Marca',
-                    prefixIcon: const Icon(Icons.sell_outlined),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String>(value: null, child: Text('Todas las marcas')),
-                    ..._availableBrands.map((brand) => DropdownMenuItem<String>(value: brand, child: Text(brand))),
-                  ],
-                  onChanged: (value) => setState(() => selectedBrand = value),
-                ),
-              ),
-            ..._availableFacets.entries.map((facet) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: DropdownButtonFormField<String>(
-                value: selectedFacets[facet.key],
-                decoration: InputDecoration(
-                  labelText: facet.key,
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                items: [
-                  const DropdownMenuItem<String>(value: null, child: Text('Cualquiera')),
-                  ...facet.value.map((value) => DropdownMenuItem<String>(value: value, child: Text(value))),
-                ],
-                onChanged: (value) => setState(() {
-                  if (value == null) {
-                    selectedFacets.remove(facet.key);
-                  } else {
-                    selectedFacets[facet.key] = value;
-                  }
-                }),
-              ),
-            )),
-            if (_availableBrands.isEmpty && _availableFacets.isEmpty)
-              const Text('Todavía no encontramos características para filtrar en esta búsqueda.',
-                  style: TextStyle(color: Colors.black54, fontSize: 12)),
-          ],
+          _searchCriterionField(
+            controller: variantFilterController,
+            label: 'Tipo o variedad',
+            hint: 'Ej. parcialmente descremada, molido, sin azúcar',
+          ),
           const SizedBox(height: 8),
-          const Text('Los filtros se construyen con los productos encontrados. Podés combinar solo los que necesites.',
-              style: TextStyle(color: Colors.black54, fontSize: 12)),
+          _searchCriterionField(
+            controller: packageFilterController,
+            label: 'Envase o presentación',
+            hint: 'Ej. caja de cartón, botella, frasco, paquete',
+          ),
+          const SizedBox(height: 8),
+          _searchCriterionField(
+            controller: sizeFilterController,
+            label: 'Contenido',
+            hint: 'Ej. 1 L, 500 g, 250 ml',
+          ),
         ],
         const SizedBox(height: 12),
         FilledButton.icon(
