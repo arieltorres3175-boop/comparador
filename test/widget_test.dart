@@ -23,6 +23,23 @@ void main() {
     expect(find.text('Búsquedas frecuentes'), findsNothing);
   });
 
+  testWidgets('muestra criterios del producto antes de consultar supermercados', (tester) async {
+    await tester.pumpWidget(const ComparadorApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Leche'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Precisá Leche'), findsOneWidget);
+    expect(find.text('Marca'), findsOneWidget);
+    expect(find.text('Tipo o variedad'), findsOneWidget);
+    expect(find.text('Envase o presentación'), findsOneWidget);
+    expect(find.text('Contenido'), findsOneWidget);
+    expect(find.text('Buscar en los supermercados'), findsOneWidget);
+  });
+
   testWidgets('permite cargar un producto a la lista sin consultar supermercados', (tester) async {
     await tester.pumpWidget(const ComparadorApp());
     await tester.pump();
