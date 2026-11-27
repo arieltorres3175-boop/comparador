@@ -9,6 +9,10 @@ const STORES = [
 
 const COTO_SEARCH = 'https://www.cotodigital.com.ar/sitios/cdigi/categoria';
 
+// Cloudflare Free allows 50 external subrequests per invocation. Two pages
+// per each of the seven stores keep normal searches comfortably below that
+// ceiling, including occasional redirects.
+
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -162,7 +166,7 @@ async function searchVtex(store, query, limit) {
     const allProducts = [];
     let status = 200;
     // Respect the page size requested by the app.
-    for (let offset = 0, page = 0; page < 10; offset += limit, page++) {
+    for (let offset = 0, page = 0; page < 2; offset += limit, page++) {
       url.searchParams.set('_from', String(offset));
       url.searchParams.set('_to', String(offset + limit - 1));
       const response = await fetch(url, {
