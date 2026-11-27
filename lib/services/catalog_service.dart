@@ -206,7 +206,10 @@ class CatalogService {
         );
       }
       final filteredProducts = workerResult.products
-          .where((product) => _matchesSearchQuery(product.name, sourceQuery))
+          .where((product) => _matchesSearchQuery(
+            [product.name, product.brand ?? '', ...product.offers.map((offer) => offer.variant ?? '')].join(' '),
+            sourceQuery,
+          ))
           .toList();
       return CatalogSearchResult(
         query: query,
@@ -422,7 +425,7 @@ class CatalogService {
 
       // Coto utiliza paginación Endeca (No + Nrpp). La búsqueda específica
       // permite ampliar la cobertura sin descargar catálogos genéricos.
-      for (var offset = 0, page = 0; page < 2; offset += limit, page++) {
+      for (var offset = 0, page = 0; page < 10; offset += limit, page++) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
           '/sitios/cdigi/categoria',
