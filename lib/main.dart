@@ -275,7 +275,13 @@ class _HomePageState extends State<HomePage> {
     if (selectedCategory == null || selectedBrand == null) return const {};
     return ProductFacets.available(
       selectedCategory!,
-      _productsForSelectedBrand.map((product) => product.name),
+      _productsForSelectedBrand.expand((product) => [
+        product.name,
+        ...product.offers.expand((offer) => [
+          offer.name,
+          offer.variant ?? '',
+        ]),
+      ]),
     );
   }
 
