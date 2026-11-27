@@ -710,7 +710,8 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 10),
           if (loadingDiscovery)
-            const LinearProgressIndicator(),
+            const Text('Consultando las opciones disponibles en los catálogos...',
+                style: TextStyle(color: Colors.black54, fontSize: 12)),
           if (discoveryError != null)
             Text(
               'No pudimos cargar las opciones del catálogo: $discoveryError',
