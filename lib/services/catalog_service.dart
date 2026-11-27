@@ -526,6 +526,7 @@ class CatalogService {
         offers.add(StoreOffer(
           store: 'Coto',
           name: value('sku.displayName') ?? 'Producto sin nombre',
+          brand: value('product.brand') ?? value('product.brandName'),
           ean: value('product.eanPrincipal'),
           price: price,
           listPrice: _parseLocalizedPrice(value('sku.listPrice')),
