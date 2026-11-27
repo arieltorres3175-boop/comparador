@@ -37,6 +37,12 @@ class ProductFacets {
     switch (category) {
       case 'Leche':
         if (!words.contains('leche')) return false;
+        if (_hasAny(words, {
+          'corporal', 'facial', 'locion', 'shampoo', 'acondicionador',
+          'limpiador', 'desmaquillante', 'hidratante', 'cosmetica',
+        })) return false;
+        if (text.contains('dulce de leche') &&
+            !text.trimLeft().startsWith('leche ')) return false;
         if (text.trimLeft().startsWith('leche ')) return true;
         const descriptors = {
           'entera', 'descremada', 'semidescremada', 'liviana', 'protein',
