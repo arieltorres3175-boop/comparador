@@ -244,7 +244,10 @@ class CatalogService {
             .map((result) => _StoreSearch(
                   result.status,
                   result.offers
-                      .where((offer) => _matchesSearchQuery(offer.name, sourceQuery))
+                      .where((offer) => _matchesSearchQuery(
+                        [offer.name, offer.brand ?? '', offer.variant ?? ''].join(' '),
+                        sourceQuery,
+                      ))
                       .toList(),
                 ))
             .toList();
@@ -282,9 +285,9 @@ class CatalogService {
       final decodedProducts = <Map<String, dynamic>>[];
       var lastStatus = 200;
 
-      // VTEX pagina los resultados en bloques. Seguimos consultando hasta recibir una página incompleta o vacía, con un máximo de dos páginas
-      // para que la selección inicial no demore minutos.
-      for (var offset = 0, page = 0; page < 2; offset += limit, page++) {
+      // La consulta ya incluye los criterios elegidos por el usuario. Paginamos
+      // hasta agotar coincidencias o alcanzar un límite de seguridad.
+      for (var offset = 0, page = 0; page < 10; offset += limit, page++) {
         final uri = Uri.https(
           store.domain,
           '/api/catalog_system/pub/products/search',
@@ -417,8 +420,8 @@ class CatalogService {
       final allRecords = <Map<String, dynamic>>[];
       var lastStatus = 200;
 
-      // Coto utiliza paginación Endeca (No + Nrpp). Para la selección inicial
-      // consultamos como máximo dos páginas y evitamos esperas excesivas.
+      // Coto utiliza paginación Endeca (No + Nrpp). La búsqueda específica
+      // permite ampliar la cobertura sin descargar catálogos genéricos.
       for (var offset = 0, page = 0; page < 2; offset += limit, page++) {
         final uri = Uri.https(
           'www.cotodigital.com.ar',
@@ -556,14 +559,23 @@ class CatalogService {
     }
 
     final products = grouped.values.map((offers) {
-      offers.sort((a, b) => a.price.compareTo(b.price));
-      final first = offers.first;
+      // Keep at most one current offer per supermarket for an exact EAN.
+      final byStore = <String, StoreOffer>{};
+      for (final offer in offers) {
+        final previous = byStore[offer.store];
+        if (previous == null || offer.price < previous.price) {
+          byStore[offer.store] = offer;
+        }
+      }
+      final uniqueOffers = byStore.values.toList()
+        ..sort((a, b) => a.price.compareTo(b.price));
+      final first = uniqueOffers.first;
       return CatalogProduct(
         name: first.name,
         ean: first.ean,
         brand: first.brand,
         comparableByEan: first.ean != null && first.ean!.isNotEmpty,
-        offers: offers,
+        offers: uniqueOffers,
       );
     }).toList()
       ..sort((a, b) => a.offers.first.price.compareTo(b.offers.first.price));
