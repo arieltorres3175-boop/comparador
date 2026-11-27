@@ -705,7 +705,7 @@ class _HomePageState extends State<HomePage> {
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
           const SizedBox(height: 6),
           const Text(
-            'Completá los datos que conozcas. Se enviarán junto con el producto a cada supermercado para buscar esa presentación, no un catálogo completo.',
+            'Elegí entre las opciones que aparecen en los catálogos. Cada lista depende de la marca y de las presentaciones publicadas para ese producto.',
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 10),
